@@ -37,7 +37,7 @@ os.makedirs(os.path.dirname(DATABASE), exist_ok=True)
 
 # NodeMCU Configuration
 NODEMCU_CONFIG = {
-    'base_url': os.environ.get('NODEMCU_BASE_URL', 'http://192.168.8.137/'),  # URL NodeMCU
+    'base_url': os.environ.get('NODEMCU_BASE_URL', 'https://iot-clothesline-system.onrender.com/'),  # URL NodeMCU
     'timeout': float(os.environ.get('NODEMCU_TIMEOUT', '5'))  # Timeout dalam detik
 }
 
