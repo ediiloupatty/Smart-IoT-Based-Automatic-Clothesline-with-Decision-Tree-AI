@@ -20,7 +20,7 @@ app = Flask(__name__)
 app.config.from_object(config.Config)
 
 # Initialize CORS with the configuration
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 # Initialize SocketIO with CORS and other configurations
 socketio = SocketIO(
@@ -28,7 +28,10 @@ socketio = SocketIO(
     cors_allowed_origins="*",
     ping_timeout=config.Config.SOCKETIO_PING_TIMEOUT,
     ping_interval=config.Config.SOCKETIO_PING_INTERVAL,
-    async_mode=config.Config.SOCKETIO_ASYNC_MODE
+    async_mode=config.Config.SOCKETIO_ASYNC_MODE,
+    logger=True,
+    engineio_logger=True,
+    transports=['websocket', 'polling']
 )
 
 print(f"Current working directory: {os.getcwd()}")
@@ -44,6 +47,8 @@ weather_predictor = WeatherPredictor()
 def nodemcu_reader():
     """Background thread to read data from NodeMCU and save to database"""
     from utils.database import save_sensor_data
+    
+    print("Starting NodeMCU reader thread")
     
     while config.threads_running:
         try:
@@ -63,16 +68,21 @@ def nodemcu_reader():
                 )
                 
                 # Broadcast data via WebSocket
-                socketio.emit('sensor_data', data)
+                socketio.emit('sensor_data', data, namespace='/')
+                print(f"Emitted sensor data: {data}")
+            else:
+                print("No data received from NodeMCU")
                 
-                # Check auto mode and send commands if needed
-                if config.AUTO_SETTINGS['enabled']:
-                    check_auto_conditions()
+            # Check auto mode and send commands if needed
+            if config.AUTO_SETTINGS['enabled']:
+                check_auto_conditions()
         except Exception as e:
             print(f"NodeMCU reader error: {str(e)}")
         
         # Sleep for the configured interval
         time.sleep(config.APP_CONFIG['polling_interval'])
+    
+    print("NodeMCU reader thread stopped")
 
 # =============================================
 # FLASK ROUTES
@@ -206,6 +216,9 @@ def handle_connect():
         data = get_latest_data()
         if data:
             emit('sensor_data', data)
+            print(f"Sent initial data to client: {data}")
+        else:
+            print("No initial data to send")
     except Exception as e:
         print(f"Error sending initial data to new client: {str(e)}")
 
@@ -315,6 +328,7 @@ def receive_nodemcu_data():
 
         # Immediately emit data to all connected clients via WebSocket
         socketio.emit('sensor_data', data)
+        print(f"Emitted received data to clients: {data}")
 
         return jsonify({'status': 'success', 'message': 'Data received successfully'})
     except Exception as e:
@@ -325,6 +339,9 @@ def receive_nodemcu_data():
 # MAIN EXECUTION
 # =============================================
 if __name__ == '__main__':
+    # Start the threads
+    config.threads_running = True
+    
     # Start background threads
     nodemcu_thread = threading.Thread(target=nodemcu_reader)
     nodemcu_thread.daemon = True
@@ -339,7 +356,8 @@ if __name__ == '__main__':
             app,
             host='0.0.0.0',
             port=int(os.environ.get('PORT', 5000)),
-            debug=False
+            debug=False,
+            use_reloader=False
         )
     finally:
         # Ensure threads are properly signaled to stop when app exits
