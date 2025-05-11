@@ -299,11 +299,6 @@ def view_data():
     rows = get_all_data_records()
     return jsonify(rows)
 
-@app.route('/check-nodemcu')
-def check_nodemcu():
-    """Check if NodeMCU is available"""
-    from utils.nodemcu_manager import check_nodemcu_connection
-    return check_nodemcu_connection()
 
 @app.route('/api/nodemcu/data', methods=['POST', 'OPTIONS'])
 def receive_nodemcu_data():
