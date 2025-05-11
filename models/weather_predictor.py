@@ -30,15 +30,37 @@ class WeatherPredictor:
             self.load_model()
             config.MODEL_INFO['trained'] = True
         except (FileNotFoundError, EOFError):
+            print("Model file not found or empty. Will need training.")
+            config.MODEL_INFO['trained'] = False
+        except KeyError as e:
+            print(f"Incompatible model format: {e}. Model needs retraining.")
+            config.MODEL_INFO['trained'] = False
+            self.build_model()  # Initialize a new model
+        except Exception as e:
+            print(f"Unexpected error loading model: {e}")
             config.MODEL_INFO['trained'] = False
 
     def load_model(self, filename='models/weather_model.joblib'):
         """Load a trained model from disk"""
-        print(f"Loading model from {os.path.abspath(filename)}")
-        self.model = joblib.load(filename)
-        self.scaler = joblib.load('models/scaler.save')
-        print("Model loaded successfully")
-
+        try:
+            print(f"Loading model from {os.path.abspath(filename)}")
+            self.model = joblib.load(filename)
+            self.scaler = joblib.load('models/scaler.save')
+            print("Model loaded successfully")
+        except (FileNotFoundError, EOFError) as e:
+            print(f"Model file not found or empty: {e}")
+            raise
+        except KeyError as e:
+            print(f"Incompatible model format: {e}. Needs retraining.")
+            # Reset to untrained state
+            config.MODEL_INFO['trained'] = False
+            self.build_model()  # Initialize a new model
+            raise ValueError("Model needs retraining due to compatibility issues")
+        except Exception as e:
+            print(f"Unexpected error loading model: {e}")
+            import traceback
+            print(traceback.format_exc())
+            raise
 
     def create_dataset(self, scaled_data, y):
         """Create time-series dataset from scaled sensor data"""
@@ -185,8 +207,14 @@ class WeatherPredictor:
         if not self.model:
             try:
                 self.load_model()
-            except (FileNotFoundError, EOFError):
-                raise ValueError("Model not trained")
+            except (FileNotFoundError, EOFError, ValueError):
+                # If model can't be loaded, build a new one
+                self.build_model()
+                raise ValueError("Model not trained or incompatible. Please train first.")
+            except Exception as e:
+                print(f"Unexpected error loading model: {e}")
+                self.build_model()  # Create empty model
+                raise ValueError("Model error. Please train first.")
         
         # Convert data to numpy array
         data_array = np.array(recent_data)
@@ -231,8 +259,10 @@ class WeatherPredictor:
             if not os.path.exists(dir_path):
                 os.makedirs(dir_path)
             print(f"Saving model to {os.path.abspath(filename)}")
-            joblib.dump(self.model, filename)
-            joblib.dump(self.scaler, os.path.join(dir_path, 'scaler.save'))
+            # Use protocol=4 which is compatible with Python 3.4+ 
+            # and works consistently across environments
+            joblib.dump(self.model, filename, protocol=4)
+            joblib.dump(self.scaler, os.path.join(dir_path, 'scaler.save'), protocol=4)
             print("Model saved successfully")
         except Exception as e:
             print(f"Error saving model: {e}")
