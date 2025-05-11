@@ -48,6 +48,9 @@ def nodemcu_reader():
                     data.get('rotation', 0)
                 )
                 
+                # Broadcast data melalui WebSocket
+                socketio.emit('sensor_data', data)
+                
                 # Check auto mode and send commands if needed
                 if config.AUTO_SETTINGS['enabled']:
                     check_auto_conditions()
@@ -180,6 +183,14 @@ def predict_weather():
             'probability': 0
         })
 
+@socketio.on('connect')
+def handle_connect():
+    print('Client connected')
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    print('Client disconnected')
+
 # =============================================
 # ROUTES FOR SETTINGS PAGE
 # =============================================
@@ -253,6 +264,31 @@ def view_data():
     rows = get_all_data_records()
     return jsonify(rows)
 
+@app.route('/api/nodemcu/data', methods=['POST'])
+def receive_nodemcu_data():
+    try:
+        data = request.get_json()
+        print(f"Received data from NodeMCU: {data}")
+        
+        from utils.database import save_sensor_data
+
+        # Simpan data ke database
+        save_sensor_data(
+            data.get('ldr', 0),
+            data.get('rain', 0),
+            data.get('status', 'UNKNOWN'),
+            data.get('rotation', 0)
+        )
+
+        # Kirim via WebSocket juga ke client jika perlu
+        socketio.emit('sensor_data', data)
+
+        return jsonify({'status': 'success', 'message': 'Data received successfully'})
+    except Exception as e:
+        print(f"Error receiving data from NodeMCU: {str(e)}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
 # =============================================
 # MAIN EXECUTION
 # =============================================
@@ -266,12 +302,12 @@ if __name__ == '__main__':
     auto_train_thread = start_auto_training(weather_predictor)
     
     try:
-        app.run(
+        # Gunakan socketio.run bukan app.run
+        socketio.run(
+            app,
             host='0.0.0.0',
-            port=5000,
-            debug=False,
-            threaded=True,
-            use_reloader=False
+            port=int(os.environ.get('PORT', 5000)),
+            debug=False
         )
     finally:
         # Ensure threads are properly signaled to stop when app exits
