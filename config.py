@@ -13,6 +13,15 @@ from dotenv import load_dotenv
 # Load environment variables from .env file if exists
 load_dotenv()
 
+# Flask and CORS configuration
+class Config:
+    CORS_ALLOWED_ORIGINS = "*"
+    SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key')
+    # SocketIO configs
+    SOCKETIO_PING_TIMEOUT = 25
+    SOCKETIO_PING_INTERVAL = 5
+    SOCKETIO_ASYNC_MODE = "gevent"
+
 # Check if we're running on a production environment (Render)
 IS_PRODUCTION = os.environ.get('RENDER', False)
 

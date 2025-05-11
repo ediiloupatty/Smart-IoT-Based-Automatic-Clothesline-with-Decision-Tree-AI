@@ -6,6 +6,7 @@ from flask import Flask, render_template, jsonify, request
 import threading
 import time
 import os
+from flask_cors import CORS
 
 # Import configuration and utilities
 import config
@@ -16,10 +17,23 @@ from flask_socketio import SocketIO, emit
 
 # Create Flask application
 app = Flask(__name__)
+app.config.from_object(config.Config)
+
+# Initialize CORS with the configuration
+CORS(app)
+
+# Initialize SocketIO with CORS and other configurations
+socketio = SocketIO(
+    app,
+    cors_allowed_origins="*",
+    ping_timeout=config.Config.SOCKETIO_PING_TIMEOUT,
+    ping_interval=config.Config.SOCKETIO_PING_INTERVAL,
+    async_mode=config.Config.SOCKETIO_ASYNC_MODE
+)
+
 print(f"Current working directory: {os.getcwd()}")
 print(f"Absolute path to app: {os.path.abspath(__file__)}")
-
-socketio = SocketIO(app, cors_allowed_origins="*")
+print(f"Socket.IO configuration: ping_timeout={config.Config.SOCKETIO_PING_TIMEOUT}, ping_interval={config.Config.SOCKETIO_PING_INTERVAL}")
 
 # Initialize weather predictor model
 weather_predictor = WeatherPredictor()
@@ -48,7 +62,7 @@ def nodemcu_reader():
                     data.get('rotation', 0)
                 )
                 
-                # Broadcast data melalui WebSocket
+                # Broadcast data via WebSocket
                 socketio.emit('sensor_data', data)
                 
                 # Check auto mode and send commands if needed
@@ -57,6 +71,7 @@ def nodemcu_reader():
         except Exception as e:
             print(f"NodeMCU reader error: {str(e)}")
         
+        # Sleep for the configured interval
         time.sleep(config.APP_CONFIG['polling_interval'])
 
 # =============================================
@@ -186,6 +201,13 @@ def predict_weather():
 @socketio.on('connect')
 def handle_connect():
     print('Client connected')
+    # Emit the current data to the new client
+    try:
+        data = get_latest_data()
+        if data:
+            emit('sensor_data', data)
+    except Exception as e:
+        print(f"Error sending initial data to new client: {str(e)}")
 
 @socketio.on('disconnect')
 def handle_disconnect():
@@ -264,8 +286,13 @@ def view_data():
     rows = get_all_data_records()
     return jsonify(rows)
 
-@app.route('/api/nodemcu/data', methods=['POST'])
+@app.route('/api/nodemcu/data', methods=['POST', 'OPTIONS'])
 def receive_nodemcu_data():
+    # Handle CORS preflight requests
+    if request.method == 'OPTIONS':
+        response = app.make_default_options_response()
+        return response
+        
     try:
         if not request.is_json:
             return jsonify({'status': 'error', 'message': 'Content-Type must be application/json'}), 400
@@ -294,8 +321,6 @@ def receive_nodemcu_data():
         print(f"Error receiving data from NodeMCU: {str(e)}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
-
-
 # =============================================
 # MAIN EXECUTION
 # =============================================
@@ -309,7 +334,7 @@ if __name__ == '__main__':
     auto_train_thread = start_auto_training(weather_predictor)
     
     try:
-        # Gunakan socketio.run bukan app.run
+        # Use socketio.run instead of app.run
         socketio.run(
             app,
             host='0.0.0.0',
