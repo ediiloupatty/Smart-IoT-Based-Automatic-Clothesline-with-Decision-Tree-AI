@@ -1,10 +1,13 @@
 Flask==2.0.1
-Werkzeug==2.0.1 
+Werkzeug==2.0.1
 requests==2.26.0
 scikit-learn==1.2.0
-numpy==1.23.5  # Ganti dengan versi yang lebih baru
-scipy==1.9.3   # Tambahkan versi yang kompatibel dengan NumPy yang baru
+numpy==1.23.5
+scipy==1.9.3
 joblib==1.1.1
 python-dotenv==0.19.2
 gunicorn==20.1.0
 flask_socketio==5.3.0
+flask-cors==3.0.10
+gevent==22.10.2
+gevent-websocket==0.10.1
