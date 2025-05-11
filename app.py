@@ -267,7 +267,13 @@ def view_data():
 @app.route('/api/nodemcu/data', methods=['POST'])
 def receive_nodemcu_data():
     try:
+        if not request.is_json:
+            return jsonify({'status': 'error', 'message': 'Content-Type must be application/json'}), 400
+        
         data = request.get_json()
+        if not data:
+            return jsonify({'status': 'error', 'message': 'Request body is empty or not valid JSON'}), 400
+        
         print(f"Received data from NodeMCU: {data}")
         
         from utils.database import save_sensor_data
@@ -287,6 +293,7 @@ def receive_nodemcu_data():
     except Exception as e:
         print(f"Error receiving data from NodeMCU: {str(e)}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
+
 
 
 # =============================================
