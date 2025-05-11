@@ -246,25 +246,6 @@
             console.log("Page loaded, initializing data...");
             updateData();
         });
-        
-        // Fungsi untuk menerapkan tema dari localStorage
-        function applyTheme() {
-            // Cek preferensi tema dari localStorage
-            const currentTheme = localStorage.getItem('theme');
-            const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
-            
-            // Terapkan tema berdasarkan prioritas: localStorage, kemudian preferensi sistem
-            if (currentTheme === 'dark') {
-                document.documentElement.setAttribute('data-theme', 'dark');
-            } else if (currentTheme === 'light') {
-                document.documentElement.setAttribute('data-theme', 'light');
-            } else if (prefersDarkScheme.matches) {
-                document.documentElement.setAttribute('data-theme', 'dark');
-            }
-        }
-        
-        // Jalankan saat halaman dimuat
-        document.addEventListener('DOMContentLoaded', applyTheme);
-    </script>    
+    </script>
 </body>
 </html>
