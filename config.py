@@ -20,7 +20,7 @@ class Config:
     # SocketIO configs - adjusted for better websocket compatibility
     SOCKETIO_PING_TIMEOUT = 30  # Increased from 25
     SOCKETIO_PING_INTERVAL = 10  # Increased from 5
-    SOCKETIO_ASYNC_MODE = "gevent"  # Keep using gevent
+    SOCKETIO_ASYNC_MODE = "threading"  # Keep using gevent
 
 # Check if we're running on a production environment (Render)
 IS_PRODUCTION = os.environ.get('RENDER', False)

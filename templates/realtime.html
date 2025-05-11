@@ -8,6 +8,59 @@
     <!-- Add Chart.js library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        /* Add spinner for loading state */
+        .loading-spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left: 4px solid #3498db;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+            display: none;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Flash animation for value updates */
+        @keyframes flash {
+            0% { background-color: transparent; }
+            50% { background-color: rgba(52, 152, 219, 0.3); }
+            100% { background-color: transparent; }
+        }
+        
+        .value-update {
+            animation: flash 0.5s;
+        }
+        
+        /* Connection status indicator */
+        .connection-status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .connected {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
+        .connecting {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+    </style>
 </head>
 <body>
     <header id="main-header">
@@ -26,6 +79,11 @@
     </header>
     
     <div class="container">
+        <!-- Connection Status Indicator -->
+        <div id="connection-status" class="connection-status connecting">
+            <i class="fas fa-sync fa-spin"></i> Connecting to system...
+        </div>
+        
         <div class="dashboard">
             <div class="card">
                 <h2>System Status</h2>
@@ -51,16 +109,15 @@
             
             <div class="card">
                 <h2>Weather Prediction</h2>
-                <div class="data-container">
-                    <div class="data-item">
-                        <span>Next 1 Hour Prediction:</span>
-                        <span id="rain-prediction" class="digital-value">-</span>
-                    </div>
-                    <div class="data-item">
-                        <span>Confidence Level:</span>
-                        <span id="rain-confidence" class="digital-value">-</span>
-                    </div>
+                <div class="data-item">
+                    <span>Next 1 Hour Prediction:</span>
+                    <span id="rain-prediction" class="digital-value">-</span>
                 </div>
+                <div class="data-item">
+                    <span>Confidence Level:</span>
+                    <span id="rain-confidence" class="digital-value">-</span>
+                </div>
+                <div class="loading-spinner" id="prediction-spinner"></div>
             </div>
         </div>
         
@@ -124,53 +181,221 @@
             },
             options: chartConfig
         });
-    
-        // Update Data Function
-        function updateData() {
-            console.log("Fetching data from server...");
+        
+        // Track reconnection attempts
+        let reconnectAttempts = 0;
+        const MAX_RECONNECT_ATTEMPTS = 5;
+        let reconnectInterval = 3000; // Start with 3 seconds
+        let dataFetchTimer = null;
+        let wsConnection = null;
+        
+        // Connection status indicator functions
+        function updateConnectionStatus(status, message) {
+            const statusElement = document.getElementById('connection-status');
+            statusElement.className = 'connection-status ' + status;
             
+            switch(status) {
+                case 'connected':
+                    statusElement.innerHTML = '<i class="fas fa-check-circle"></i> ' + (message || 'Connected to system');
+                    break;
+                case 'disconnected':
+                    statusElement.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + (message || 'Disconnected from system');
+                    break;
+                case 'connecting':
+                    statusElement.innerHTML = '<i class="fas fa-sync fa-spin"></i> ' + (message || 'Connecting to system...');
+                    break;
+            }
+        }
+        
+        // Try WebSocket first, fallback to polling if WebSocket fails
+        function setupDataConnection() {
+            // Try WebSocket first
+            try {
+                updateConnectionStatus('connecting', 'Attempting WebSocket connection...');
+                
+                // Determine correct WebSocket URL
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const host = window.location.hostname;
+                const port = window.location.port ? window.location.port : (protocol === 'wss:' ? '443' : '80');
+                
+                // Try to connect to NodeMCU WebSocket port
+                const wsUrl = `${protocol}//${host}:81`;
+                console.log(`Connecting to WebSocket: ${wsUrl}`);
+                
+                wsConnection = new WebSocket(wsUrl);
+                
+                wsConnection.onopen = function() {
+                    console.log('WebSocket connection established');
+                    updateConnectionStatus('connected', 'Connected via WebSocket');
+                    reconnectAttempts = 0; // Reset reconnect counter on success
+                    
+                    // Cancel polling if it was running
+                    if (dataFetchTimer) {
+                        clearInterval(dataFetchTimer);
+                    }
+                };
+                
+                wsConnection.onmessage = function(event) {
+                    console.log('Received WebSocket data:', event.data);
+                    
+                    try {
+                        const data = JSON.parse(event.data);
+                        updateDashboardData(data);
+                        updateWeatherPrediction(); // Still fetch weather prediction separately
+                    } catch (error) {
+                        console.error('Error parsing WebSocket message:', error);
+                    }
+                };
+                
+                wsConnection.onclose = function() {
+                    console.log('WebSocket connection closed');
+                    updateConnectionStatus('disconnected', 'WebSocket disconnected');
+                    wsConnection = null;
+                    
+                    // If we haven't exceeded max reconnects, try again
+                    if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                        setTimeout(tryFallbackToPolling, reconnectInterval);
+                        reconnectAttempts++;
+                        reconnectInterval *= 1.5; // Exponential backoff
+                    } else {
+                        updateConnectionStatus('disconnected', 'Connection failed. Please refresh the page.');
+                    }
+                };
+                
+                wsConnection.onerror = function(error) {
+                    console.error('WebSocket error:', error);
+                    if (wsConnection) {
+                        wsConnection.close();
+                    }
+                };
+                
+            } catch (error) {
+                console.error('Error setting up WebSocket:', error);
+                tryFallbackToPolling();
+            }
+        }
+        
+        function tryFallbackToPolling() {
+            updateConnectionStatus('connecting', 'Trying HTTP polling fallback...');
+            console.log('Falling back to HTTP polling');
+            
+            // Clear any existing timer
+            if (dataFetchTimer) {
+                clearInterval(dataFetchTimer);
+            }
+            
+            // Test a single fetch to see if it works
             fetch('/get_data')
                 .then(response => {
-                    console.log("Response status:", response.status);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
                     return response.json();
                 })
                 .then(data => {
-                    console.log("Data received:", data);
+                    console.log('Initial polling data fetch successful:', data);
+                    updateConnectionStatus('connected', 'Connected via HTTP polling');
+                    updateDashboardData(data);
                     
-                    if (data && data.ldr !== undefined) {
-                        // Update Digital Display
-                        document.getElementById('ldr-value').textContent = data.ldr;
-                        document.getElementById('rain-value').textContent = data.rain < 500 ? "DETECTED" : "NONE";
-                        document.getElementById('status-value').textContent = data.status;
-                        document.getElementById('time-value').textContent = data.timestamp;
-
-                        // Add animation class
-                        const elements = document.querySelectorAll('.digital-value');
-                        elements.forEach(el => {
-                            el.classList.add('value-update');
-                            setTimeout(() => el.classList.remove('value-update'), 500);
-                        });
-
-                        // Update Charts
-                        const time = new Date().toLocaleTimeString();
-                        
-                        // Light Chart
-                        updateChart(lightChart, data.ldr, time);
-                        
-                        // Rain Chart
-                        updateChart(rainChart, data.rain, time);
-
-                        // Update Weather Prediction
-                        updateWeatherPrediction();
-                    } else {
-                        console.warn("Received empty or invalid data");
-                    }
+                    // If successful, start regular polling
+                    dataFetchTimer = setInterval(updateDataViaPolling, 3000);
+                    
+                    // Also fetch weather prediction
+                    updateWeatherPrediction();
                 })
                 .catch(error => {
-                    console.error("Error fetching data:", error);
+                    console.error('Polling fetch failed:', error);
+                    updateConnectionStatus('disconnected', 'Cannot connect to server');
+                    
+                    // Try again if within retry limit
+                    if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                        setTimeout(tryFallbackToPolling, reconnectInterval);
+                        reconnectAttempts++;
+                        reconnectInterval *= 1.5; // Exponential backoff
+                    }
                 });
         }
-
+        
+        // Update data via HTTP polling
+        function updateDataViaPolling() {
+            fetch('/get_data')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    updateDashboardData(data);
+                })
+                .catch(error => {
+                    console.error('Error polling data:', error);
+                    updateConnectionStatus('disconnected', 'Connection lost!');
+                    
+                    // Cancel polling timer
+                    if (dataFetchTimer) {
+                        clearInterval(dataFetchTimer);
+                        dataFetchTimer = null;
+                    }
+                    
+                    // Try to reconnect
+                    if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+                        setTimeout(setupDataConnection, reconnectInterval);
+                        reconnectAttempts++;
+                    }
+                });
+        }
+    
+        // Update Dashboard with data
+        function updateDashboardData(data) {
+            console.log('Updating dashboard with data:', data);
+            
+            if (!data) {
+                console.warn('No data provided to updateDashboardData');
+                return;
+            }
+            
+            // Update dashboard values with animation
+            updateElementWithAnimation('ldr-value', data.ldr !== undefined ? data.ldr : '-');
+            
+            // Update rain value with text interpretation
+            const rainValue = data.rain !== undefined ? data.rain : '-';
+            const rainText = rainValue !== '-' ? (rainValue < 500 ? "DETECTED" : "NONE") : '-';
+            updateElementWithAnimation('rain-value', rainText);
+            
+            // Update status
+            updateElementWithAnimation('status-value', data.status || '-');
+            
+            // Format timestamp nicely
+            const timestamp = data.timestamp ? new Date().toLocaleTimeString() : '-';
+            updateElementWithAnimation('time-value', timestamp);
+            
+            // Add datapoint to charts
+            const time = new Date().toLocaleTimeString();
+            
+            if (data.ldr !== undefined) {
+                updateChart(lightChart, data.ldr, time);
+            }
+            
+            if (data.rain !== undefined) {
+                updateChart(rainChart, data.rain, time);
+            }
+        }
+        
+        // Helper function to update element with animation
+        function updateElementWithAnimation(elementId, value) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                // Only update if value has changed
+                if (element.textContent !== String(value)) {
+                    element.textContent = value;
+                    element.classList.add('value-update');
+                    setTimeout(() => element.classList.remove('value-update'), 500);
+                }
+            }
+        }
+        
+        // Chart update function
         function updateChart(chart, value, label) {
             chart.data.labels.push(label);
             chart.data.datasets[0].data.push(value);
@@ -183,24 +408,31 @@
             chart.update();
         }
     
+        // Weather prediction update function with improved error handling
         function updateWeatherPrediction() {
             console.log("Updating weather prediction...");
             
+            // Show spinner while fetching prediction
+            document.getElementById('prediction-spinner').style.display = 'block';
+            
             fetch('/predict-weather')
                 .then(response => {
-                    console.log("Prediction response status:", response.status);
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
                     return response.json();
                 })
                 .then(data => {
                     console.log("Weather prediction data received:", data);
+                    document.getElementById('prediction-spinner').style.display = 'none';
                     
                     const predictionElement = document.getElementById('rain-prediction');
                     const confidenceElement = document.getElementById('rain-confidence');
                     
                     if (data.error) {
                         console.warn("Weather prediction error:", data.error);
-                        predictionElement.textContent = "MODEL NOT READY";
-                        confidenceElement.textContent = "N/A";
+                        updateElementWithAnimation('rain-prediction', "MODEL NOT READY");
+                        updateElementWithAnimation('rain-confidence', "N/A");
                         predictionElement.style.color = '#f39c12'; // Orange for warning
                         confidenceElement.style.color = '#f39c12';
                         return;
@@ -208,43 +440,36 @@
                     
                     if (data.will_rain !== undefined && data.probability !== undefined) {
                         // Update prediction display
-                        predictionElement.textContent = data.will_rain ? 'RAINY' : 'SUNNY';
+                        updateElementWithAnimation('rain-prediction', data.will_rain ? 'RAINY' : 'SUNNY');
                         const confidencePercent = Math.round(data.probability * 100);
-                        confidenceElement.textContent = `${confidencePercent}%`;
+                        updateElementWithAnimation('rain-confidence', `${confidencePercent}%`);
                         
                         // Set color based on prediction
                         predictionElement.style.color = data.will_rain ? '#e74c3c' : '#2ecc71';
                         confidenceElement.style.color = data.will_rain ? '#e74c3c' : '#2ecc71';
-                        
-                        // Add animation class for update
-                        predictionElement.classList.add('value-update');
-                        confidenceElement.classList.add('value-update');
-                        setTimeout(() => {
-                            predictionElement.classList.remove('value-update');
-                            confidenceElement.classList.remove('value-update');
-                        }, 500);
                     } else {
                         console.warn("Received invalid weather prediction data format");
-                        predictionElement.textContent = "ERROR";
-                        confidenceElement.textContent = "ERROR";
-                        predictionElement.style.color = '#e74c3c'; // Red for error
+                        updateElementWithAnimation('rain-prediction', "ERROR");
+                        updateElementWithAnimation('rain-confidence', "ERROR");
+                        predictionElement.style.color = '#e74c3c';
                         confidenceElement.style.color = '#e74c3c';
                     }
                 })
                 .catch(error => {
                     console.error("Error fetching weather prediction:", error);
-                    document.getElementById('rain-prediction').textContent = "CONNECTION ERROR";
-                    document.getElementById('rain-confidence').textContent = "N/A";
+                    document.getElementById('prediction-spinner').style.display = 'none';
+                    updateElementWithAnimation('rain-prediction', "CONNECTION ERROR");
+                    updateElementWithAnimation('rain-confidence', "N/A");
                 });
         }
-    
-        // Update every 3 seconds instead of 1 second to prevent overwhelming the server
-        setInterval(updateData, 3000);
         
-        // Initial call
+        // Initialize everything when the page loads
         document.addEventListener('DOMContentLoaded', function() {
-            console.log("Page loaded, initializing data...");
-            updateData();
+            console.log("Page loaded, initializing data connection...");
+            setupDataConnection();
+            
+            // Periodically update weather prediction regardless of other connection type
+            setInterval(updateWeatherPrediction, 30000);
         });
     </script>
 </body>
