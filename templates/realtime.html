@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light"></html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitoring Real-time | Smart Clothesline System</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Add Chart.js library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header id="main-header">
+        <div class="header-container">
+            <div class="logo">
+                <i class="fas fa-cloud-sun"></i>
+                <span>Smart Clothesline System</span>
+            </div>
+            <div class="nav-links">
+                <a href="/" class="active">Home</a>
+                <a href="/realtime-monitoring">Real-time Monitoring</a>
+                <a href="/control">Manual Control</a>
+                <a href="/settings">System Settings</a>
+            </div>
+        </div>
+    </header>
+    
+    <div class="container">
+        <div class="dashboard">
+            <div class="card">
+                <h2>System Status</h2>
+                <div class="data-container">
+                    <div class="data-item">
+                        <span>Light Intensity (LDR):</span>
+                        <span id="ldr-value" class="digital-value">-</span>
+                    </div>
+                    <div class="data-item">
+                        <span>Rain Sensor:</span>
+                        <span id="rain-value" class="digital-value">-</span>
+                    </div>
+                    <div class="data-item">
+                        <span>Clothesline Status:</span>
+                        <span id="status-value" class="digital-value">-</span>
+                    </div>
+                    <div class="data-item">
+                        <span>Last Update:</span>
+                        <span id="time-value" class="digital-value">-</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>Weather Prediction</h2>
+                <div class="data-container">
+                    <div class="data-item">
+                        <span>Next 1 Hour Prediction:</span>
+                        <span id="rain-prediction" class="digital-value">-</span>
+                    </div>
+                    <div class="data-item">
+                        <span>Confidence Level:</span>
+                        <span id="rain-confidence" class="digital-value">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="chart-container">
+            <canvas id="lightChart"></canvas>
+        </div>
+        
+        <div class="chart-container">
+            <canvas id="rainChart"></canvas>
+        </div>
+    </div>
+    
+    <footer>
+        <p>&copy; 2023 Smart Clothesline System. All rights reserved.</p>
+        <p>IoT Innovation Lab</p>
+    </footer>
+    
+    <script>
+        // Initialize Charts
+        const lightCtx = document.getElementById('lightChart').getContext('2d');
+        const rainCtx = document.getElementById('rainChart').getContext('2d');
+    
+        const chartConfig = {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: { beginAtZero: true },
+                x: { display: true }
+            },
+            plugins: {
+                legend: { position: 'top' }
+            }
+        };
+    
+        const lightChart = new Chart(lightCtx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Light Intensity (LDR)',
+                    data: [],
+                    borderColor: '#3498db',
+                    tension: 0.4,
+                    fill: false
+                }]
+            },
+            options: chartConfig
+        });
+    
+        const rainChart = new Chart(rainCtx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Rain Sensor',
+                    data: [],
+                    borderColor: '#e74c3c',
+                    tension: 0.4,
+                    fill: false
+                }]
+            },
+            options: chartConfig
+        });
+    
+        // Update Data Function
+        function updateData() {
+            console.log("Fetching data from server...");
+            
+            fetch('/get_data')
+                .then(response => {
+                    console.log("Response status:", response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("Data received:", data);
+                    
+                    if (data && data.ldr !== undefined) {
+                        // Update Digital Display
+                        document.getElementById('ldr-value').textContent = data.ldr;
+                        document.getElementById('rain-value').textContent = data.rain < 500 ? "DETECTED" : "NONE";
+                        document.getElementById('status-value').textContent = data.status;
+                        document.getElementById('time-value').textContent = data.timestamp;
+
+                        // Add animation class
+                        const elements = document.querySelectorAll('.digital-value');
+                        elements.forEach(el => {
+                            el.classList.add('value-update');
+                            setTimeout(() => el.classList.remove('value-update'), 500);
+                        });
+
+                        // Update Charts
+                        const time = new Date().toLocaleTimeString();
+                        
+                        // Light Chart
+                        updateChart(lightChart, data.ldr, time);
+                        
+                        // Rain Chart
+                        updateChart(rainChart, data.rain, time);
+
+                        // Update Weather Prediction
+                        updateWeatherPrediction();
+                    } else {
+                        console.warn("Received empty or invalid data");
+                    }
+                })
+                .catch(error => {
+                    console.error("Error fetching data:", error);
+                });
+        }
+
+        function updateChart(chart, value, label) {
+            chart.data.labels.push(label);
+            chart.data.datasets[0].data.push(value);
+            
+            if (chart.data.labels.length > 15) {
+                chart.data.labels.shift();
+                chart.data.datasets[0].data.shift();
+            }
+            
+            chart.update();
+        }
+
+
+    
+        function updateWeatherPrediction() {
+            console.log("Updating weather prediction...");
+            
+            fetch('/predict-weather')
+                .then(response => {
+                    console.log("Prediction response status:", response.status);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("Weather prediction data received:", data);
+                    
+                    const predictionElement = document.getElementById('rain-prediction');
+                    const confidenceElement = document.getElementById('rain-confidence');
+                    
+                    if (data.error) {
+                        console.warn("Weather prediction error:", data.error);
+                        predictionElement.textContent = "MODEL NOT READY";
+                        confidenceElement.textContent = "N/A";
+                        predictionElement.style.color = '#f39c12'; // Orange for warning
+                        confidenceElement.style.color = '#f39c12';
+                        return;
+                    }
+                    
+                    if (data.will_rain !== undefined && data.probability !== undefined) {
+                        // Update prediction display
+                        predictionElement.textContent = data.will_rain ? 'RAINY' : 'SUNNY';
+                        const confidencePercent = Math.round(data.probability * 100);
+                        confidenceElement.textContent = `${confidencePercent}%`;
+                        
+                        // Set color based on prediction
+                        predictionElement.style.color = data.will_rain ? '#e74c3c' : '#2ecc71';
+                        confidenceElement.style.color = data.will_rain ? '#e74c3c' : '#2ecc71';
+                        
+                        // Add animation class for update
+                        predictionElement.classList.add('value-update');
+                        confidenceElement.classList.add('value-update');
+                        setTimeout(() => {
+                            predictionElement.classList.remove('value-update');
+                            confidenceElement.classList.remove('value-update');
+                        }, 500);
+                    } else {
+                        console.warn("Received invalid weather prediction data format");
+                        predictionElement.textContent = "ERROR";
+                        confidenceElement.textContent = "ERROR";
+                        predictionElement.style.color = '#e74c3c'; // Red for error
+                        confidenceElement.style.color = '#e74c3c';
+                    }
+                })
+                .catch(error => {
+                    console.error("Error fetching weather prediction:", error);
+                    document.getElementById('rain-prediction').textContent = "CONNECTION ERROR";
+                    document.getElementById('rain-confidence').textContent = "N/A";
+                });
+        }
+    
+        // Update every 1 second
+        setInterval(updateData, 1000);
+        
+        // Initial call
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log("Page loaded, initializing data...");
+            updateData();
+        });
+                // Fungsi untuk menerapkan tema dari localStorage
+                function applyTheme() {
+            // Cek preferensi tema dari localStorage
+            const currentTheme = localStorage.getItem('theme');
+            const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
+            
+            // Terapkan tema berdasarkan prioritas: localStorage, kemudian preferensi sistem
+            if (currentTheme === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            } else if (currentTheme === 'light') {
+                document.documentElement.setAttribute('data-theme', 'light');
+            } else if (prefersDarkScheme.matches) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+        }
+        
+
+        // Jalankan saat halaman dimuat
+        document.addEventListener('DOMContentLoaded', applyTheme);
+    </script>    
+</body>
+</html>

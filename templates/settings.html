@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>System Settings | Smart Clothesline System</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div id="theme-loading-screen">
+        <div class="loader"></div>
+    </div>
+    <header id="main-header">
+        <div class="header-container">
+            <div class="logo">
+                <i class="fas fa-cloud-sun"></i>
+                <span>Smart Clothesline System</span>
+            </div>
+            <div class="nav-links">
+                <a href="/" class="active">Home</a>
+                <a href="/realtime-monitoring">Real-time Monitoring</a>
+                <a href="/control">Manual Control</a>
+                <a href="/settings">System Settings</a>
+            </div>
+        </div>
+    </header>
+
+    <div class="container main-content">
+        <div id="alert-success" class="alert alert-success">
+            <i class="fas fa-check-circle"></i> Settings saved successfully!
+        </div>
+        <div id="alert-danger" class="alert alert-danger">
+            <i class="fas fa-exclamation-circle"></i> Error saving settings. Please try again.
+        </div>
+        
+        <div class="dashboard">
+            <div class="card">
+                <h2>Interface Settings</h2>
+                <div class="form-group theme-switch-wrapper">
+                    <label for="dark-mode">
+                        <span class="theme-switch-icon" id="theme-icon"><i class="fas fa-sun"></i></span>
+                        Mode Tampilan:
+                    </label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="dark-mode">
+                        <span class="slider"></span>
+                    </label>
+                    <span id="theme-text" style="margin-left: 10px;">Mode Terang</span>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h2>NodeMCU Connection Settings</h2>
+                <form id="settings-form">
+                    <div class="form-group">
+                        <label for="ip-address">NodeMCU IP Address:</label>
+                        <input type="text" id="ip-address" name="ip-address" placeholder="192.168.137.93">
+                        <small>Format: Enter IP address of your NodeMCU (e.g., 192.168.137.93)</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="connection-timeout">Connection Timeout (seconds):</label>
+                        <input type="number" id="connection-timeout" name="connection-timeout" min="1" max="30" step="1" value="5">
+                    </div>
+                    
+                    <button type="submit" id="save-config">Save Configuration</button>
+                    <button type="button" id="test-connection" class="secondary-button">
+                        <i class="fas fa-network-wired"></i> Test Connection
+                    </button>
+                    <span id="connection-status"></span>
+                </form>
+            </div>
+            
+            <div class="card">
+                <h2>Auto Mode Settings</h2>
+                <div class="auto-settings-container">
+                    <div class="form-group">
+                        <label>Auto Mode:</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" id="auto-mode">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="light-threshold">Light Intensity Threshold:</label>
+                        <input type="range" id="light-threshold" name="light-threshold" min="0" max="1023" value="500">
+                        <div class="threshold-display">
+                            Value: <span id="light-threshold-value" class="threshold-value">500</span>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="rain-threshold">Rain Sensitivity:</label>
+                        <input type="range" id="rain-threshold" name="rain-threshold" min="0" max="1023" value="500">
+                        <div class="threshold-display">
+                            Value: <span id="rain-threshold-value" class="threshold-value">500</span>
+                        </div>
+                    </div>
+                    
+                    <button id="save-auto-settings">Save Auto Settings</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>Weather Prediction Model</h2>
+            <div class="data-item">
+                <span>Current Model Status:</span>
+                <span id="model-status">Not Trained</span>
+            </div>
+            <div class="data-item">
+                <span>Last Training Date:</span>
+                <span id="last-training">-</span>
+            </div>
+            <div class="data-item">
+                <span>Model Accuracy:</span>
+                <span id="model-accuracy">-</span>
+            </div>
+            <button id="train-model"><i class="fas fa-sync"></i> Train Weather Prediction Model</button>
+            <p style="margin-top: 15px; font-size: 14px; color: #666;">
+                Training the model will use your historical sensor data to improve weather prediction accuracy.
+                This process might take a few minutes depending on the amount of data.
+            </p>
+        </div>
+    </div>
+
+    <footer>
+        <p>© 2023 Smart Clothesline System. All rights reserved.</p>
+        <p>IoT Innovation Lab</p>
+    </footer>
+
+    <script>
+        // Tema gelap (dark mode) functionality
+        const darkModeToggle = document.getElementById('dark-mode');
+        const themeIcon = document.getElementById('theme-icon');
+        const themeText = document.getElementById('theme-text');
+
+        // Check for saved theme preference or use system preference
+        const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
+        const currentTheme = localStorage.getItem('theme');
+
+        if (currentTheme === 'dark') {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            darkModeToggle.checked = true;
+            themeIcon.innerHTML = '<i class="fas fa-moon"></i>';
+            themeText.textContent = 'Mode Gelap';
+        } else if (currentTheme === 'light') {
+            document.documentElement.setAttribute('data-theme', 'light');
+            darkModeToggle.checked = false;
+            themeIcon.innerHTML = '<i class="fas fa-sun"></i>';
+            themeText.textContent = 'Mode Terang';
+        } else if (prefersDarkScheme.matches) {
+            document.documentElement.setAttribute('data-theme', 'dark');
+            darkModeToggle.checked = true;
+            themeIcon.innerHTML = '<i class="fas fa-moon"></i>';
+            themeText.textContent = 'Mode Gelap';
+        }
+
+        // Listen for toggle changes
+        // Modifikasi event listener dark mode toggle
+        darkModeToggle.addEventListener('change', function() {
+            // Tampilkan loading screen
+            const loadingScreen = document.getElementById('theme-loading-screen');
+            loadingScreen.classList.add('active');
+            
+            // Delay sedikit untuk memastikan transisi dimulai
+            setTimeout(() => {
+                if (this.checked) {
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                    localStorage.setItem('theme', 'dark');
+                    themeIcon.innerHTML = '<i class="fas fa-moon"></i>';
+                    themeText.textContent = 'Mode Gelap';
+                    console.log('Dark mode activated');
+                } else {
+                    document.documentElement.setAttribute('data-theme', 'light');
+                    localStorage.setItem('theme', 'light');
+                    themeIcon.innerHTML = '<i class="fas fa-sun"></i>';
+                    themeText.textContent = 'Mode Terang';
+                    console.log('Light mode activated');
+                }
+                
+                // Beri waktu 500ms untuk transisi tema selesai
+                // lalu sembunyikan loading screen
+                setTimeout(() => {
+                    loadingScreen.classList.remove('active');
+                }, 500);
+            }, 100);
+        });
+
+        // Update threshold value displays with visual feedback
+        document.getElementById('light-threshold').addEventListener('input', function() {
+            const value = this.value;
+            document.getElementById('light-threshold-value').textContent = value;
+            
+            // Add visual feedback for threshold ranges
+            if (value < 200) {
+                document.getElementById('light-threshold-value').style.color = '#3498db'; // Blue for low light
+            } else if (value > 800) {
+                document.getElementById('light-threshold-value').style.color = '#f39c12'; // Orange for high light
+            } else {
+                document.getElementById('light-threshold-value').style.color = '#2ecc71'; // Green for mid range
+            }
+        });
+
+        document.getElementById('rain-threshold').addEventListener('input', function() {
+            const value = this.value;
+            document.getElementById('rain-threshold-value').textContent = value;
+            
+            // Add visual feedback for threshold ranges
+            if (value < 200) {
+                document.getElementById('rain-threshold-value').style.color = '#3498db'; // Blue for dry
+            } else if (value > 800) {
+                document.getElementById('rain-threshold-value').style.color = '#9b59b6'; // Purple for wet
+            } else {
+                document.getElementById('rain-threshold-value').style.color = '#2ecc71'; // Green for mid range
+            }
+        });
+
+        // Form submission handler
+        document.getElementById('settings-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const config = {
+                base_url: `http://${document.getElementById('ip-address').value}/`,
+                timeout: parseFloat(document.getElementById('connection-timeout').value)
+            };
+            
+            saveSystemConfig(config);
+        });
+
+        // Enhanced Auto Settings handler with confirmation
+        document.getElementById('save-auto-settings').addEventListener('click', function() {
+            // Get current values
+            const autoEnabled = document.getElementById('auto-mode').checked;
+            const lightThreshold = parseInt(document.getElementById('light-threshold').value);
+            const rainThreshold = parseInt(document.getElementById('rain-threshold').value);
+            
+            // Show a confirmation dialog when enabling auto mode
+            if (autoEnabled) {
+                const confirmEnable = confirm(
+                    "Enabling Auto Mode will allow the system to automatically control your clothesline " +
+                    "based on weather conditions.\n\n" +
+                    "Light Threshold: " + lightThreshold + "\n" +
+                    "Rain Threshold: " + rainThreshold + "\n\n" +
+                    "Are you sure you want to enable Auto Mode?"
+                );
+                
+                if (!confirmEnable) {
+                    document.getElementById('auto-mode').checked = false;
+                    return;
+                }
+            }
+            
+            const autoSettings = {
+                enabled: autoEnabled,
+                lightThreshold: lightThreshold,
+                rainThreshold: rainThreshold
+            };
+            
+            saveAutoSettings(autoSettings);
+        });
+
+        // Test connection button handler
+        document.getElementById('test-connection').addEventListener('click', function() {
+            const ipAddress = document.getElementById('ip-address').value;
+            const timeout = document.getElementById('connection-timeout').value;
+            
+            if (!ipAddress) {
+                showAlert('danger', 'Please enter a valid IP address');
+                return;
+            }
+            
+            this.disabled = true;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Testing...';
+            const connectionStatus = document.getElementById('connection-status');
+            connectionStatus.textContent = 'Checking connection...';
+            connectionStatus.className = '';
+            
+            fetch('/check-nodemcu', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    ip_address: ipAddress,
+                    timeout: timeout
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'connected') {
+                    connectionStatus.textContent = 'Connected successfully!';
+                    connectionStatus.className = 'text-success';
+                } else {
+                    connectionStatus.textContent = `Failed: ${data.message}`;
+                    connectionStatus.className = 'text-danger';
+                }
+            })
+            .catch(error => {
+                connectionStatus.textContent = `Error: ${error.message}`;
+                connectionStatus.className = 'text-danger';
+            })
+            .finally(() => {
+                this.disabled = false;
+                this.innerHTML = '<i class="fas fa-network-wired"></i> Test Connection';
+            });
+        });
+
+        // Train model handler
+        document.getElementById('train-model').addEventListener('click', function() {
+            this.disabled = true;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Training...';
+            
+            fetch('/train-model', {
+                method: 'POST'
+            })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(data => {
+                            throw new Error(data.error || 'Unknown error occurred');
+                        });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.accuracy) {
+                        document.getElementById('model-status').textContent = 'Trained';
+                        document.getElementById('last-training').textContent = new Date().toLocaleString();
+                        document.getElementById('model-accuracy').textContent = (data.accuracy * 100).toFixed(2) + '%';
+                        
+                        showAlert('success', 'Model trained successfully!');
+                    } else {
+                        showAlert('danger', 'Error training model: ' + (data.error || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error details:', error);
+                    showAlert('danger', 'Error training model: ' + error.message);
+                })
+                .finally(() => {
+                    this.disabled = false;
+                    this.innerHTML = '<i class="fas fa-sync"></i> Train Weather Prediction Model';
+                });
+        });
+
+        // Save system configuration
+        function saveSystemConfig(config) {
+            fetch('/save-config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(config)
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Failed to save');
+                return response.json();
+            })
+            .then(data => {
+                showAlert('success', 'NodeMCU connection settings saved!');
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('danger', 'Error saving configuration');
+            });
+        }
+
+        // Save auto mode settings
+        function saveAutoSettings(settings) {
+            fetch('/save-auto-settings', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(settings)
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Failed to save');
+                return response.json();
+            })
+            .then(data => {
+                showAlert('success', 'Auto mode settings saved!');
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('danger', 'Error saving auto mode settings');
+            });
+        }
+
+        // Show alert messages
+        function showAlert(type, message) {
+            const alert = document.getElementById(`alert-${type}`);
+            alert.style.display = 'block';
+            
+            setTimeout(() => {
+                alert.style.display = 'none';
+            }, 3000);
+        }
+
+        // Load current settings when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            loadCurrentSettings();
+            
+            // Add an explanation for users about threshold values
+            const autoSettingsContainer = document.querySelector('.auto-settings-container');
+            const thresholdExplanation = document.createElement('div');
+            thresholdExplanation.className = 'threshold-explanation';
+            // Insert the explanation at the end of the auto settings container
+            if (autoSettingsContainer) {
+                document.getElementById('save-auto-settings').after(thresholdExplanation);
+            }
+        });
+
+        function loadCurrentSettings() {
+            // Load system config
+            fetch('/get-config')
+                .then(response => response.json())
+                .then(data => {
+                    // Extract IP address from base_url
+                    const baseUrl = data.base_url || 'http://192.168.137.93/';
+                    const ipAddress = baseUrl.replace(/^http:\/\/|\/$/g, '');
+                    
+                    document.getElementById('ip-address').value = ipAddress;
+                    document.getElementById('connection-timeout').value = data.timeout || '5';
+                })
+                .catch(error => console.error('Error loading config:', error));
+            
+            // Load auto settings
+            fetch('/get-auto-settings')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('auto-mode').checked = data.enabled;
+                    document.getElementById('light-threshold').value = data.lightThreshold;
+                    document.getElementById('rain-threshold').value = data.rainThreshold;
+                    
+                    // Update displays and apply color coding
+                    const lightThreshold = data.lightThreshold;
+                    const rainThreshold = data.rainThreshold;
+                    const lightEl = document.getElementById('light-threshold-value');
+                    const rainEl = document.getElementById('rain-threshold-value');
+                    
+                    lightEl.textContent = lightThreshold;
+                    rainEl.textContent = rainThreshold;
+                    
+                    // Set colors based on values
+                    if (lightThreshold < 200) {
+                        lightEl.style.color = '#3498db'; // Blue for low light
+                    } else if (lightThreshold > 800) {
+                        lightEl.style.color = '#f39c12'; // Orange for high light
+                    } else {
+                        lightEl.style.color = '#2ecc71'; // Green for mid range
+                    }
+                    
+                    if (rainThreshold < 200) {
+                        rainEl.style.color = '#3498db'; // Blue for dry
+                    } else if (rainThreshold > 800) {
+                        rainEl.style.color = '#9b59b6'; // Purple for wet
+                    } else {
+                        rainEl.style.color = '#2ecc71'; // Green for mid range
+                    }
+                })
+                .catch(error => console.error('Error loading auto settings:', error));
+            
+            // Load model info
+            fetch('/get-model-info')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('model-status').textContent = data.trained ? 'Trained' : 'Not Trained';
+                    document.getElementById('last-training').textContent = data.lastTraining || '-';
+                    document.getElementById('model-accuracy').textContent = data.accuracy ? (data.accuracy * 100).toFixed(2) + '%' : '-';
+                })
+                .catch(error => console.error('Error loading model info:', error));
+        }
+    </script>
+</body>
+</html>

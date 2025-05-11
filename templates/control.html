@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual Control | Smart Clothesline System</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header id="main-header">
+        <div class="header-container">
+            <div class="logo">
+                <i class="fas fa-cloud-sun"></i>
+                <span>Smart Clothesline System</span>
+            </div>
+            <div class="nav-links">
+                <a href="/" class="active">Home</a>
+                <a href="/realtime-monitoring">Real-time Monitoring</a>
+                <a href="/control">Manual Control</a>
+                <a href="/settings">System Settings</a>
+            </div>
+        </div>
+    </header>
+
+    <div class="container main-content">
+        <div class="dashboard">
+            <div class="card">
+                <h2>Manual Control</h2>
+                <div class="controls">
+                    <button onclick="sendCommand('open')"><i class="fas fa-umbrella-beach"></i> Buka Jemuran</button>
+                    <button onclick="sendCommand('close')"><i class="fas fa-home"></i> Tutup Jemuran</button>
+                    <button onclick="sendCommand('stop')" class="stop"><i class="fas fa-hand"></i> STOP</button>
+                </div>
+                <div id="status">Status: Siap</div>
+            </div>
+            
+            <div class="card">
+                <h2>System Status</h2>
+                <div class="data-container">
+                    <div class="data-item">
+                        <span>Current Position:</span>
+                        <span class="digital-value" id="position">Extended</span>
+                    </div>
+                    <div class="data-item">
+                        <span>Motor Status:</span>
+                        <span class="digital-value" id="motor">Idle</span>
+                    </div>
+                    <div class="data-item">
+                        <span>Last Command:</span>
+                        <span class="digital-value" id="lastCmd">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <p>© 2023 Smart Clothesline System. All rights reserved.</p>
+        <p>IoT Innovation Lab</p>
+    </footer>
+
+    <script>
+        function sendCommand(command) {
+            // Update UI immediately for better UX
+            const commandLabels = {
+                'open': 'Membuka...',
+                'close': 'Menutup...',
+                'stop': 'Berhenti'
+            };
+            
+            document.getElementById('status').innerText = 'Status: ' + commandLabels[command];
+            document.getElementById('lastCmd').innerText = command;
+            document.getElementById('motor').innerText = command === 'stop' ? 'Idle' : 'Active';
+            
+            // Add animation for visual feedback
+            document.getElementById('lastCmd').classList.add('value-update');
+            setTimeout(() => {
+                document.getElementById('lastCmd').classList.remove('value-update');
+            }, 500);
+            
+            // Send the actual command to the server
+            fetch('/send_command', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ command: command })
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Gagal mengirim');
+                return response.json();
+            })
+            .then(data => {
+                console.log('Command sent successfully:', data);
+                // Update position after a delay to simulate motor movement
+                if (command !== 'stop') {
+                    setTimeout(() => {
+                        document.getElementById('position').innerText = command === 'open' ? 'Extended' : 'Retracted';
+                        document.getElementById('motor').innerText = 'Idle';
+                        document.getElementById('status').innerText = 'Status: Selesai';
+                    }, 3000);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.getElementById('status').innerText = 'Status: Gagal mengirim perintah!';
+                alert('Gagal mengirim perintah!');
+            });
+        }
+                // Fungsi untuk menerapkan tema dari localStorage
+                function applyTheme() {
+            // Cek preferensi tema dari localStorage
+            const currentTheme = localStorage.getItem('theme');
+            const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
+            
+            // Terapkan tema berdasarkan prioritas: localStorage, kemudian preferensi sistem
+            if (currentTheme === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            } else if (currentTheme === 'light') {
+                document.documentElement.setAttribute('data-theme', 'light');
+            } else if (prefersDarkScheme.matches) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+        }
+        
+
+        // Jalankan saat halaman dimuat
+        document.addEventListener('DOMContentLoaded', applyTheme);
+    </script>
+</body>
+</html>
