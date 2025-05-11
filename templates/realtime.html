@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="id" data-theme="light"></html>
+<html lang="id" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -17,8 +17,8 @@
                 <span>Smart Clothesline System</span>
             </div>
             <div class="nav-links">
-                <a href="/" class="active">Home</a>
-                <a href="/realtime-monitoring">Real-time Monitoring</a>
+                <a href="/">Home</a>
+                <a href="/realtime-monitoring" class="active">Real-time Monitoring</a>
                 <a href="/control">Manual Control</a>
                 <a href="/settings">System Settings</a>
             </div>
@@ -182,8 +182,6 @@
             
             chart.update();
         }
-
-
     
         function updateWeatherPrediction() {
             console.log("Updating weather prediction...");
@@ -240,16 +238,17 @@
                 });
         }
     
-        // Update every 1 second
-        setInterval(updateData, 1000);
+        // Update every 3 seconds instead of 1 second to prevent overwhelming the server
+        setInterval(updateData, 3000);
         
         // Initial call
         document.addEventListener('DOMContentLoaded', function() {
             console.log("Page loaded, initializing data...");
             updateData();
         });
-                // Fungsi untuk menerapkan tema dari localStorage
-                function applyTheme() {
+        
+        // Fungsi untuk menerapkan tema dari localStorage
+        function applyTheme() {
             // Cek preferensi tema dari localStorage
             const currentTheme = localStorage.getItem('theme');
             const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
@@ -264,7 +263,6 @@
             }
         }
         
-
         // Jalankan saat halaman dimuat
         document.addEventListener('DOMContentLoaded', applyTheme);
     </script>    
