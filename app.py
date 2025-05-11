@@ -12,11 +12,14 @@ import config
 from utils.database import get_latest_data, get_data_count, get_all_data_records, get_recent_sensor_data
 from utils.nodemcu_manager import get_nodemcu_data, send_command_to_nodemcu, check_auto_conditions
 from models.weather_predictor import WeatherPredictor, start_auto_training
+from flask_socketio import SocketIO, emit
 
 # Create Flask application
 app = Flask(__name__)
 print(f"Current working directory: {os.getcwd()}")
 print(f"Absolute path to app: {os.path.abspath(__file__)}")
+
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Initialize weather predictor model
 weather_predictor = WeatherPredictor()
