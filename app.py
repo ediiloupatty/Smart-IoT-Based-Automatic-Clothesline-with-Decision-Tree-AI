@@ -278,7 +278,7 @@ def receive_nodemcu_data():
         
         from utils.database import save_sensor_data
 
-        # Simpan data ke database
+        # Save data to database
         save_sensor_data(
             data.get('ldr', 0),
             data.get('rain', 0),
@@ -286,7 +286,7 @@ def receive_nodemcu_data():
             data.get('rotation', 0)
         )
 
-        # Kirim via WebSocket juga ke client jika perlu
+        # Immediately emit data to all connected clients via WebSocket
         socketio.emit('sensor_data', data)
 
         return jsonify({'status': 'success', 'message': 'Data received successfully'})
