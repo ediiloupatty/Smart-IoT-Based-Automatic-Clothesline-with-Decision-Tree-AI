@@ -1,276 +1,208 @@
 """
-Main Flask application for Machine Learning Automated Clothesline System
+Main application file for IoT Clothesline System
 """
 
-from flask import Flask, render_template, jsonify, request
-import threading
-import time
 import os
+import sys
+import time
+from flask import Flask, jsonify, request, render_template, send_from_directory
+from datetime import datetime
 
-# Import configuration and utilities
-import config
-from utils.database import get_latest_data, get_data_count, get_all_data_records, get_recent_sensor_data
-from utils.nodemcu_manager import get_nodemcu_data, send_command_to_nodemcu, check_auto_conditions
-from models.weather_predictor import WeatherPredictor, start_auto_training
+# Print system info for debugging
+print(f"System: {sys.platform}")
+print(f"Python: {sys.version.split()[0]}")
 
-# Create Flask application
-app = Flask(__name__)
+# Add absolute paths to help with imports
+current_dir = os.path.dirname(os.path.abspath(__file__))
+print(f"Database path: {os.path.join(current_dir, 'data', 'sensor_data.db')}")
+
+# Set production mode
+production = os.environ.get('PRODUCTION', 'true').lower() == 'true'
+print(f"Production mode: {production}")
+
+# Show current working directory
 print(f"Current working directory: {os.getcwd()}")
 print(f"Absolute path to app: {os.path.abspath(__file__)}")
 
-# Initialize weather predictor model
-weather_predictor = WeatherPredictor()
+# Create necessary directories
+data_dir = os.path.join(current_dir, 'data')
+models_dir = os.path.join(current_dir, 'models')
 
-# =============================================
-# BACKGROUND THREADS
-# =============================================
-def nodemcu_reader():
-    """Background thread to read data from NodeMCU and save to database"""
-    from utils.database import save_sensor_data
-    
-    while config.threads_running:
-        try:
-            # Get data from NodeMCU
-            data = get_nodemcu_data()
-            
-            # If data was retrieved successfully
-            if data:
-                print(f"Data from NodeMCU: {data}")
-                
-                # Save data to database
-                save_sensor_data(
-                    data.get('ldr', 0),
-                    data.get('rain', 0),
-                    data.get('status', ''),
-                    data.get('rotation', 0)
-                )
-                
-                # Check auto mode and send commands if needed
-                if config.AUTO_SETTINGS['enabled']:
-                    check_auto_conditions()
-        except Exception as e:
-            print(f"NodeMCU reader error: {str(e)}")
-        
-        time.sleep(config.APP_CONFIG['polling_interval'])
+for directory in [data_dir, models_dir]:
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+        print(f"Created directory: {directory}")
 
-# =============================================
-# FLASK ROUTES
-# =============================================
+# Import project modules
+import config
+from models.weather_predictor import WeatherPredictor, start_auto_training
+from utils.database import save_sensor_data, get_recent_sensor_data, get_predictions, save_prediction
+
+# Initialize Flask app
+app = Flask(__name__)
+
+# Initialize weather predictor with robust error handling
+try:
+    weather_predictor = WeatherPredictor()
+except ValueError as e:
+    print(f"Warning: {e}")
+    weather_predictor = WeatherPredictor()
+    # Ensure the model attribute is initialized even if loading failed
+    if weather_predictor.model is None:
+        weather_predictor.build_model()
+    config.MODEL_INFO['trained'] = False
+except Exception as e:
+    print(f"Critical error initializing weather predictor: {e}")
+    import traceback
+    print(traceback.format_exc())
+    # Create minimal predictor
+    weather_predictor = WeatherPredictor()
+    weather_predictor.build_model()
+    config.MODEL_INFO['trained'] = False
+
+# Start background processes
+if production:
+    # Start auto-training thread
+    config.threads_running = True
+    auto_train_thread = start_auto_training(weather_predictor)
+
+# Routes
 @app.route('/')
 def index():
+    """Render the main dashboard"""
     return render_template('index.html')
 
-@app.route('/realtime-monitoring')
-def realtime_monitoring():
+@app.route('/realtime')
+def realtime():
+    """Render the realtime monitoring page"""
     return render_template('realtime.html')
 
 @app.route('/control')
 def control():
+    """Render the control panel"""
     return render_template('control.html')
 
 @app.route('/settings')
 def settings():
+    """Render the settings page"""
     return render_template('settings.html')
 
-@app.route('/get_data')
-def get_data():
-    data = get_latest_data()
-    if data:
-        print(f"Data from database: {data}")
-        return jsonify(data)
-    return jsonify({})  # Return empty JSON if no data found
+@app.route('/static/<path:path>')
+def serve_static(path):
+    """Serve static files"""
+    return send_from_directory('static', path)
 
-@app.route('/check-data-count')
-def check_data_count():
-    count = get_data_count()
-    return jsonify({'count': count})
-
-@app.route('/send_command', methods=['POST'])
-def send_command():
+@app.route('/api/sensor-data', methods=['POST'])
+def receive_sensor_data():
+    """API endpoint to receive sensor data from devices"""
     try:
-        command = request.json.get('command')
-        if command in ["open", "close", "stop"]:
-            result = send_command_to_nodemcu(command)
-            return jsonify({'status': 'success', 'message': result.get('message', 'Command sent')})
-        else:
-            return jsonify({'status': 'error', 'message': 'Invalid command'}), 400
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/train-model', methods=['POST'])
-def handle_train():
-    try:
-        # First check if we have enough data
-        count = get_data_count()
-        print(f"Training model with {count} data records")
+        data = request.get_json()
         
-        min_required = weather_predictor.window_size + 10
-        if count < min_required:
-            return jsonify({'error': f'Data tidak cukup. Dibutuhkan minimal {min_required} data, saat ini hanya ada {count}'}), 400
-            
-        # Continue with training
-        result = weather_predictor.train()
+        if not data or 'ldr' not in data or 'rain' not in data:
+            return jsonify({
+                'status': 'error',
+                'message': 'Invalid data. LDR and rain values required.'
+            }), 400
+        
+        ldr = data['ldr']
+        rain = data['rain']
+        
+        # Save to database
+        save_sensor_data(ldr, rain)
+        
+        # If model is trained, make prediction
+        prediction_result = None
+        if config.MODEL_INFO['trained']:
+            try:
+                recent_data = get_recent_sensor_data(window_size=weather_predictor.window_size-1)
+                if len(recent_data) >= weather_predictor.window_size-1:
+                    prediction, confidence = weather_predictor.predict_next_hour(recent_data)
+                    save_prediction(prediction, confidence)
+                    prediction_result = {
+                        'prediction': int(prediction),
+                        'confidence': float(confidence),
+                        'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    }
+            except Exception as e:
+                print(f"Error making prediction: {e}")
         
         return jsonify({
+            'status': 'success',
+            'message': 'Data received successfully',
+            'prediction': prediction_result
+        })
+    except Exception as e:
+        print(f"Error processing sensor data: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': f'Internal server error: {str(e)}'
+        }), 500
+
+@app.route('/api/recent-data', methods=['GET'])
+def get_recent_data():
+    """API endpoint to get recent sensor data"""
+    try:
+        count = request.args.get('count', 10, type=int)
+        data = get_recent_sensor_data(count)
+        predictions = get_predictions(count)
+        
+        return jsonify({
+            'status': 'success',
+            'data': [{'ldr': row[0], 'rain': row[1], 'timestamp': row[2]} for row in data],
+            'predictions': [{'prediction': p[0], 'confidence': p[1], 'timestamp': p[2]} for p in predictions]
+        })
+    except Exception as e:
+        print(f"Error getting recent data: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
+@app.route('/api/force-train', methods=['POST'])
+def force_train():
+    """Force model training regardless of previous state"""
+    try:
+        result = weather_predictor.train()
+        return jsonify({
+            "status": "success",
+            "message": "Model trained successfully",
+            "data": result
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
+@app.route('/api/train', methods=['POST'])
+def train_model():
+    """API endpoint to train the model"""
+    try:
+        result = weather_predictor.train()
+        return jsonify({
+            'status': 'success',
+            'message': 'Model trained successfully',
             'accuracy': result['accuracy']
         })
-    except Exception as e:
-        import traceback
-        error_details = traceback.format_exc()
-        print(f"Error in train_model: {str(e)}\n{error_details}")
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/predict-weather')
-def predict_weather():
-    try:
-        # Check if model is trained
-        if not config.MODEL_INFO['trained']:
-            return jsonify({
-                'error': 'Model not trained yet',
-                'will_rain': False,
-                'probability': 0
-            })
-        
-        # Get the recent data from database - we need window_size-1 records
-        window_size = weather_predictor.window_size
-        recent_data = get_recent_sensor_data(window_size-1)
-        
-        # Check if we have enough data
-        if len(recent_data) < window_size-1:
-            return jsonify({
-                'error': f'Not enough recent data for prediction. Need {window_size-1} records.',
-                'will_rain': False,
-                'probability': 0
-            })
-        
-        # Log the data we're using for prediction
-        print(f"Using data for prediction: {recent_data}")
-        
-        try:
-            # Get prediction
-            prediction, probability = weather_predictor.predict_next_hour(recent_data)
-            print(f"Prediction result: {prediction}, probability: {probability}")
-            
-            # Convert prediction to boolean based on threshold
-            will_rain = bool(prediction == 1)  # If prediction is 1, it will rain
-            
-            return jsonify({
-                'will_rain': will_rain,
-                'probability': float(probability)
-            })
-        except Exception as e:
-            print(f"Error during prediction: {e}")
-            import traceback
-            print(traceback.format_exc())
-            return jsonify({
-                'error': f'Prediction error: {str(e)}',
-                'will_rain': False,
-                'probability': 0
-            })
-    except Exception as e:
-        print(f"General error in predict_weather: {e}")
-        import traceback
-        print(traceback.format_exc())
+    except ValueError as e:
         return jsonify({
-            'error': str(e),
-            'will_rain': False, 
-            'probability': 0
-        })
+            'status': 'error',
+            'message': str(e)
+        }), 400
+    except Exception as e:
+        print(f"Error training model: {e}")
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
 
-# =============================================
-# ROUTES FOR SETTINGS PAGE
-# =============================================
-@app.route('/get-config')
-def get_config():
-    """Get current system configuration"""
+@app.route('/api/model-info', methods=['GET'])
+def get_model_info():
+    """API endpoint to get model information"""
     return jsonify({
-        'base_url': config.NODEMCU_CONFIG['base_url'],
-        'timeout': config.NODEMCU_CONFIG['timeout']
+        'status': 'success',
+        'data': config.MODEL_INFO
     })
 
-@app.route('/save-config', methods=['POST'])
-def save_config():
-    try:
-        # Get configuration from request
-        conf = request.json
-        print(f"Saving config: {conf}")
-        
-        # Update NodeMCU configuration
-        config.NODEMCU_CONFIG['base_url'] = conf['base_url']
-        config.NODEMCU_CONFIG['timeout'] = float(conf['timeout'])
-        
-        # Save settings to database
-        config.save_setting('nodemcu_base_url', conf['base_url'])
-        config.save_setting('nodemcu_timeout', str(conf['timeout']))
-        
-        return jsonify({'status': 'success', 'message': 'Configuration saved!'})
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/get-auto-settings')
-def get_auto_settings():
-    """Get auto mode settings"""
-    return jsonify(config.AUTO_SETTINGS)
-
-@app.route('/save-auto-settings', methods=['POST'])
-def save_auto_settings():
-    try:
-        # Get settings from request
-        settings = request.json
-        print(f"Saving auto settings: {settings}")
-        
-        # Update auto settings
-        config.AUTO_SETTINGS['enabled'] = settings['enabled']
-        config.AUTO_SETTINGS['lightThreshold'] = int(settings['lightThreshold'])
-        config.AUTO_SETTINGS['rainThreshold'] = int(settings['rainThreshold'])
-        
-        # Save settings to database
-        config.save_setting('auto_enabled', str(settings['enabled']))
-        config.save_setting('light_threshold', str(settings['lightThreshold']))
-        config.save_setting('rain_threshold', str(settings['rainThreshold']))
-        
-        return jsonify({'status': 'success', 'message': 'Auto settings saved!'})
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-
-@app.route('/get-model-info')
-def get_model_info():
-    """Get model information"""
-    return jsonify(config.MODEL_INFO)
-
-@app.route('/check-nodemcu')
-def check_nodemcu():
-    """Check if NodeMCU is available"""
-    from utils.nodemcu_manager import check_nodemcu_connection
-    return check_nodemcu_connection()
-
-@app.route('/view-data')
-def view_data():
-    """Get all sensor data records"""
-    rows = get_all_data_records()
-    return jsonify(rows)
-
-# =============================================
-# MAIN EXECUTION
-# =============================================
 if __name__ == '__main__':
-    # Start background threads
-    nodemcu_thread = threading.Thread(target=nodemcu_reader)
-    nodemcu_thread.daemon = True
-    nodemcu_thread.start()
-    
-    # Start the automatic model training thread
-    auto_train_thread = start_auto_training(weather_predictor)
-    
-    try:
-        app.run(
-            host='0.0.0.0',
-            port=5000,
-            debug=False,
-            threaded=True,
-            use_reloader=False
-        )
-    finally:
-        # Ensure threads are properly signaled to stop when app exits
-        config.threads_running = False
-        print("Shutting down application and threads...")
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=not production)
