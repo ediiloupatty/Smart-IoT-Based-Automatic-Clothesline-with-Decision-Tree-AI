@@ -1,5 +1,5 @@
 """
-Weather prediction model using Decision Tree
+Weather prediction model using Decision Tree - Fixed version for cloud deployment
 """
 
 import os
@@ -22,17 +22,17 @@ class WeatherPredictor:
         """Initialize the weather predictor model"""
         self.model = None
         self.scaler = MinMaxScaler(feature_range=(0, 1))
-        self.window_size = 3  # Reduce from 6 to 3
+        self.window_size = 3  # Using a window size of 3
         self.threshold = 0.65
         
-        # Pastikan folder models ada
+        # Make sure models folder exists
         os.makedirs('models', exist_ok=True)
         
-        # Cek apakah file model ada
-        model_path = 'models/weather_model.joblib'
-        scaler_path = 'models/scaler.save'
+        # Check if model file exists
+        model_path = os.path.join('models', 'weather_model.joblib')
+        scaler_path = os.path.join('models', 'scaler.save')
         
-        print(f"Mencari model di: {os.path.abspath(model_path)}")
+        print(f"Looking for model at: {os.path.abspath(model_path)}")
         
         if os.path.exists(model_path) and os.path.getsize(model_path) > 0:
             try:
@@ -40,25 +40,28 @@ class WeatherPredictor:
                 if os.path.exists(scaler_path) and os.path.getsize(scaler_path) > 0:
                     self.scaler = joblib.load(scaler_path)
                 else:
-                    print("File scaler tidak ditemukan, menggunakan scaler default")
+                    print("Scaler file not found, using default scaler")
                 
                 config.MODEL_INFO['trained'] = True
-                print("Model berhasil dimuat")
+                print("Model loaded successfully")
             except Exception as e:
-                print(f"Error saat memuat model: {e}")
-                self.build_model()  # Buat model baru jika gagal memuat
+                print(f"Error loading model: {e}")
+                self.build_model()  # Create new model if loading fails
                 config.MODEL_INFO['trained'] = False
         else:
-            print("File model tidak ditemukan, perlu dilatih")
-            self.build_model()  # Inisialisasi model baru
+            print("Model file not found, needs training")
+            self.build_model()  # Initialize new model
             config.MODEL_INFO['trained'] = False
 
-    def load_model(self, filename='models/weather_model.joblib'):
+    def load_model(self, filename=None):
         """Load a trained model from disk"""
+        if filename is None:
+            filename = os.path.join('models', 'weather_model.joblib')
+            
         try:
             print(f"Loading model from {os.path.abspath(filename)}")
             self.model = joblib.load(filename)
-            self.scaler = joblib.load('models/scaler.save')
+            self.scaler = joblib.load(os.path.join('models', 'scaler.save'))
             print("Model loaded successfully")
         except (FileNotFoundError, EOFError) as e:
             print(f"Model file not found or empty: {e}")
@@ -78,13 +81,13 @@ class WeatherPredictor:
     def create_dataset(self, scaled_data, y):
         """Create time-series dataset from scaled sensor data"""
         try:
-            if len(scaled_data) <= self.window_size:
-                raise ValueError(f"Data length ({len(scaled_data)}) must be greater than window size ({self.window_size})")
+            if len(scaled_data) < self.window_size:
+                raise ValueError(f"Data length ({len(scaled_data)}) must be at least window size ({self.window_size})")
                 
             X, y_processed = [], []
-            for i in range(len(scaled_data) - self.window_size):
+            for i in range(len(scaled_data) - self.window_size + 1):
                 # Flatten window to 1D array
-                window = scaled_data[i:(i+self.window_size-1), :].flatten()
+                window = scaled_data[i:i+self.window_size-1, :].flatten()
                 target = y[i+self.window_size-1]
                 X.append(window)
                 y_processed.append(target)
@@ -229,6 +232,10 @@ class WeatherPredictor:
                 self.build_model()  # Create empty model
                 raise ValueError("Model error. Please train first.")
         
+        # Check if input data is valid
+        if not recent_data or len(recent_data) < (self.window_size - 1):
+            raise ValueError(f"Not enough data for prediction. Need {self.window_size - 1} records.")
+            
         # Convert data to numpy array
         data_array = np.array(recent_data)
         print(f"Input data shape for prediction: {data_array.shape}")
@@ -248,11 +255,8 @@ class WeatherPredictor:
             probabilities = self.model.predict_proba([flattened])[0]
             print(f"Raw prediction: {prediction}, probabilities: {probabilities}")
             
-            # Get the probability for the predicted class
-            if len(probabilities) > 1:
-                rain_probability = probabilities[1]  # Probability for class 1 (rain)
-            else:
-                rain_probability = probabilities[0]
+            # Get the probability for the predicted class (rain)
+            rain_probability = probabilities[1] if len(probabilities) > 1 else probabilities[0]
                 
             # Adjust probability to be more realistic
             adjusted_probability = 0.60 + (rain_probability * 0.35)
@@ -265,32 +269,34 @@ class WeatherPredictor:
             print(traceback.format_exc())
             raise
 
-    def save_model(self, filename='models/weather_model.joblib'):
+    def save_model(self, filename=None):
         """Save the trained model to disk"""
+        if filename is None:
+            filename = os.path.join('models', 'weather_model.joblib')
+            
         try:
-            # Pastikan direktori models ada
+            # Make sure the models directory exists
             dir_path = os.path.dirname(filename)
             os.makedirs(dir_path, exist_ok=True)
             
-            print(f"Menyimpan model ke {os.path.abspath(filename)}")
+            print(f"Saving model to {os.path.abspath(filename)}")
             
-            # Periksa apakah model sudah dilatih
+            # Check if model has been trained
             if self.model is None:
-                raise ValueError("Model belum dilatih, tidak dapat disimpan")
+                raise ValueError("Model not trained, cannot save")
                 
-            # Gunakan protocol=4 untuk kompatibilitas Python 3.4+
+            # Use protocol=4 for compatibility with Python 3.4+
             joblib.dump(self.model, filename, protocol=4)
             joblib.dump(self.scaler, os.path.join(dir_path, 'scaler.save'), protocol=4)
             
-            # Set flag model_trained
+            # Set model_trained flag
             config.MODEL_INFO['trained'] = True
             config.save_setting('model_trained', 'True')
             
-            print("Model berhasil disimpan")
+            print("Model saved successfully")
         except Exception as e:
-            print(f"Error saat menyimpan model: {e}")
+            print(f"Error saving model: {e}")
             raise
-
 
 def auto_train_model_thread():
     """Thread function to periodically train the model automatically"""
