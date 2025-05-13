@@ -1,5 +1,5 @@
 """
-Main Flask application for Machine Learning Automated Clothesline System
+Fixed Flask app for Machine Learning Automated Clothesline System
 """
 
 from flask import Flask, render_template, jsonify, request
@@ -39,7 +39,16 @@ print(f"Absolute path to app: {os.path.abspath(__file__)}")
 print(f"Socket.IO configuration: ping_timeout={config.Config.SOCKETIO_PING_TIMEOUT}, ping_interval={config.Config.SOCKETIO_PING_INTERVAL}")
 
 # Initialize weather predictor model
-weather_predictor = WeatherPredictor()
+try:
+    weather_predictor = WeatherPredictor()
+    print("Weather predictor initialized successfully")
+except Exception as e:
+    print(f"Error initializing weather predictor: {e}")
+    import traceback
+    print(traceback.format_exc())
+    # Continue with a basic predictor that will need training
+    weather_predictor = WeatherPredictor()
+    config.MODEL_INFO['trained'] = False
 
 # =============================================
 # BACKGROUND THREADS
@@ -137,14 +146,19 @@ def handle_train():
         
         min_required = weather_predictor.window_size + 10
         if count < min_required:
-            return jsonify({'error': f'Data tidak cukup. Dibutuhkan minimal {min_required} data, saat ini hanya ada {count}'}), 400
+            return jsonify({'error': f'Insufficient data. At least {min_required} data points required, currently have {count}'}), 400
             
         # Continue with training
-        result = weather_predictor.train()
-        
-        return jsonify({
-            'accuracy': result['accuracy']
-        })
+        try:
+            result = weather_predictor.train()
+            return jsonify({
+                'accuracy': result['accuracy']
+            })
+        except Exception as e:
+            import traceback
+            error_details = traceback.format_exc()
+            print(f"Error during model training: {str(e)}\n{error_details}")
+            return jsonify({'error': f'Training error: {str(e)}'}), 500
     except Exception as e:
         import traceback
         error_details = traceback.format_exc()
@@ -155,7 +169,7 @@ def handle_train():
 def predict_weather():
     try:
         # Check if model is trained
-        if not config.MODEL_INFO['trained']:
+        if not config.MODEL_INFO.get('trained', False):
             return jsonify({
                 'error': 'Model not trained yet',
                 'will_rain': False,
@@ -349,7 +363,10 @@ if __name__ == '__main__':
     nodemcu_thread.start()
     
     # Start the automatic model training thread
-    auto_train_thread = start_auto_training(weather_predictor)
+    try:
+        auto_train_thread = start_auto_training(weather_predictor)
+    except Exception as e:
+        print(f"Error starting auto-train thread: {e}")
     
     try:
         # Use socketio.run instead of app.run
