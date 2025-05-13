@@ -248,7 +248,8 @@ def get_model_info():
 @app.route('/check-nodemcu')
 def check_nodemcu():
     from utils.nodemcu_manager import check_nodemcu_connection
-    return check_nodemcu_connection()
+    result, status_code = check_nodemcu_connection()
+    return jsonify(result), status_code
 
 @app.route('/view-data')
 def view_data():

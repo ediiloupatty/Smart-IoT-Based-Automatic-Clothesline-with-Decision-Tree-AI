@@ -1,482 +1,991 @@
-<invoke name="artifacts">
-    <parameter name="command">create</parameter>
-    <parameter name="id">websocket-fix</parameter>
-    <parameter name="type">text/html</parameter>
-    <parameter name="title">Perbaikan Koneksi WebSocket pada realtime.html</parameter>
-    <parameter name="content"><!DOCTYPE html>
-    <html lang="id" data-theme="light">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Monitoring Real-time | Smart Clothesline System</title>
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-        <!-- Add Chart.js library -->
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-        <!-- Tambahkan Socket.IO client library -->
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.js"></script>
-        <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-        <style>
-            /* Add spinner for loading state */
-            .loading-spinner {
-                border: 4px solid rgba(0, 0, 0, 0.1);
-                width: 36px;
-                height: 36px;
-                border-radius: 50%;
-                border-left: 4px solid #3498db;
-                animation: spin 1s linear infinite;
-                margin: 20px auto;
-                display: none;
+<!DOCTYPE html>
+<html lang="id" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Clothesline System</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #0077cc;
+            --secondary-color: #005fa3;
+            --bg-color: #f5f8fa;
+            --card-bg: #ffffff;
+            --text-color: #333333;
+            --border-color: #e1e8ed;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
+            --header-bg: #0077cc;
+            --header-text: #ffffff;
+        }
+
+        [data-theme="dark"] {
+            --primary-color: #1a91ff;
+            --secondary-color: #0084ff;
+            --bg-color: #15202b;
+            --card-bg: #192734;
+            --text-color: #ffffff;
+            --border-color: #38444d;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
+            --header-bg: #1a91ff;
+            --header-text: #ffffff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: all 0.3s ease;
+        }
+
+        #main-header {
+            background-color: var(--header-bg);
+            color: var(--header-text);
+            padding: 1rem 0;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            position: fixed;
+            width: 100%;
+            top: 0;
+            z-index: 100;
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        #main-header.scrolled {
+            background-color: rgba(0, 119, 204, 0.95);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .logo i {
+            margin-right: 0.5rem;
+            font-size: 1.8rem;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+        }
+
+        .nav-links a {
+            color: var(--header-text);
+            text-decoration: none;
+            margin-left: 1.5rem;
+            font-weight: 500;
+            opacity: 0.8;
+            transition: opacity 0.3s;
+        }
+
+        .nav-links a.active, .nav-links a:hover {
+            opacity: 1;
+            border-bottom: 2px solid var(--header-text);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+
+        .main-content {
+            min-height: calc(100vh - 180px);
+        }
+
+        /* Hero Section */
+        .hero-section {
+            height: 100vh;
+            background-image: linear-gradient(rgba(0, 119, 204, 0.7), rgba(0, 70, 140, 0.9)), url('/api/placeholder/1200/800');
+            background-size: cover;
+            background-position: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            padding: 0 2rem;
+            color: white;
+            margin-bottom: 2rem;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 1s ease, transform 1s ease;
+        }
+
+        .hero-text {
+            max-width: 800px;
+        }
+
+        .hero-text h1 {
+            font-size: 3rem;
+            margin-bottom: 1.5rem;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .hero-text p {
+            font-size: 1.2rem;
+            margin-bottom: 2rem;
+            line-height: 1.6;
+            text-shadow: 0 1px 5px rgba(0, 0, 0, 0.3);
+        }
+
+        .hero-cta {
+            margin-top: 2rem;
+        }
+
+        .scroll-down-indicator {
+            position: absolute;
+            bottom: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            animation: bounce 2s infinite;
+        }
+
+        .scroll-down-indicator i {
+            font-size: 2rem;
+            margin-top: 10px;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {
+                transform: translateY(0);
             }
+            40% {
+                transform: translateY(-15px);
+            }
+            60% {
+                transform: translateY(-7px);
+            }
+        }
+
+        /* About Section */
+        .about-section {
+            padding: 5rem 0;
+            background-color: var(--bg-color);
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 1s ease, transform 1s ease;
+        }
+
+        .about-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        .about-content h2 {
+            font-size: 2.5rem;
+            margin-bottom: 2rem;
+            color: var(--primary-color);
+            text-align: center;
+            position: relative;
+            padding-bottom: 1rem;
+        }
+
+        .about-content h2:after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 4px;
+            background-color: var(--primary-color);
+        }
+
+        .about-content p {
+            margin-bottom: 1.5rem;
+            line-height: 1.7;
+            font-size: 1.1rem;
+            text-align: center;
+        }
+
+        .about-features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        .feature {
+            background-color: var(--card-bg);
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .feature:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .feature i {
+            font-size: 2.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--primary-color);
+        }
+
+        .feature h3 {
+            margin-bottom: 1rem;
+            color: var(--primary-color);
+        }
+
+        .feature p {
+            font-size: 1rem;
+            text-align: center;
+        }
+
+        /* Team Section */
+        .team-section {
+            padding: 5rem 0;
+            background-color: var(--card-bg);
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 1s ease, transform 1s ease;
+        }
+
+        .team-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        .team-heading {
+            font-size: 2.5rem;
+            margin-bottom: 2rem;
+            color: var(--primary-color);
+            text-align: center;
+            position: relative;
+            padding-bottom: 1rem;
+        }
+
+        .team-heading:after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 4px;
+            background-color: var(--primary-color);
+        }
+
+        .team-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        .team-card {
+            background-color: var(--bg-color);
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            transition: transform 0.5s ease, box-shadow 0.5s ease;
+            transform-style: preserve-3d;
+        }
+
+        .team-image {
+            width: 100%;
+            height: 250px;
+            object-fit: cover;
+            border-bottom: 3px solid var(--primary-color);
+        }
+
+        .team-card h3 {
+            font-size: 1.3rem;
+            margin: 1.2rem 0 0.5rem;
+            padding: 0 1.2rem;
+            color: var(--primary-color);
+        }
+
+        .team-card .role {
+            color: var(--secondary-color);
+            font-weight: bold;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+            padding: 0 1.2rem;
+        }
+
+        .team-card .bio {
+            font-size: 0.9rem;
+            padding: 0 1.2rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-color);
+            line-height: 1.5;
+        }
+
+        .social-links {
+            display: flex;
+            justify-content: center;
+            padding: 0 1.2rem 1.5rem;
+            gap: 1rem;
+        }
+
+        .social-links a {
+            background-color: var(--primary-color);
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+
+        .social-links a:hover {
+            background-color: var(--secondary-color);
+            transform: scale(1.1);
+        }
+
+        /* Footer */
+        .main-footer {
+            background-color: var(--header-bg);
+            color: white;
+        }
+
+        .footer-top {
+            padding: 3rem 0 2rem;
+        }
+
+        .footer-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+        }
+
+        .footer-info {
+            flex: 1;
+            min-width: 300px;
+            margin-bottom: 2rem;
+        }
+
+        .footer-logo {
+            display: flex;
+            align-items: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+        }
+
+        .footer-logo i {
+            margin-right: 0.5rem;
+            font-size: 1.8rem;
+        }
+
+        .footer-desc {
+            line-height: 1.6;
+            margin-bottom: 1.5rem;
+            opacity: 0.8;
+        }
+
+        .footer-social {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .social-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            transition: background-color 0.3s;
+        }
+
+        .social-icon:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .footer-links {
+            display: flex;
+            flex-wrap: wrap;
+            flex: 2;
+            justify-content: space-around;
+        }
+
+        .footer-link-group {
+            min-width: 160px;
+            margin-bottom: 2rem;
+        }
+
+        .footer-link-group h3 {
+            font-size: 1.2rem;
+            margin-bottom: 1.2rem;
+            position: relative;
+            padding-bottom: 0.5rem;
+        }
+
+        .footer-link-group h3:after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 40px;
+            height: 3px;
+            background-color: var(--warning-color);
+        }
+
+        .footer-link-group ul {
+            list-style: none;
+        }
+
+        .footer-link-group ul li {
+            margin-bottom: 0.8rem;
+        }
+
+        .footer-link-group ul li a {
+            color: white;
+            text-decoration: none;
+            opacity: 0.7;
+            transition: opacity 0.3s;
+        }
+
+        .footer-link-group ul li a:hover {
+            opacity: 1;
+        }
+
+        .footer-bottom {
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 1.5rem 0;
+        }
+
+        .footer-copyright {
+            opacity: 0.7;
+            font-size: 0.9rem;
+        }
+
+        .footer-tech {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .tech-badge {
+            background-color: rgba(255, 255, 255, 0.1);
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .tech-badge i {
+            margin-right: 0.5rem;
+        }
+
+        /* Theme Loading Screen */
+        #theme-loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--bg-color);
+            z-index: 9999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.5s ease, visibility 0.5s;
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        #theme-loading-screen.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .loader {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(0, 119, 204, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--primary-color);
+            animation: spin 1s infinite linear;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Animations */
+        .fade-in {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 1s ease, transform 1s ease;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .header-container {
+                flex-direction: column;
+                padding: 0.5rem 1rem;
+            }
+
+            .logo {
+                margin-bottom: 0.8rem;
+            }
+
+            .nav-links {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .nav-links a {
+                margin: 0;
+                font-size: 0.9rem;
+            }
+
+            .hero-text h1 {
+                font-size: 2.2rem;
+            }
+
+            .hero-text p {
+                font-size: 1rem;
+            }
+
+            .footer-container {
+                flex-direction: column;
+            }
+
+            .footer-links {
+                flex-direction: column;
+            }
+        }
+
+        /* Toggle Theme Button */
+        .toggle-theme {
+            background: none;
+            border: none;
+            color: var(--header-text);
+            cursor: pointer;
+            font-size: 1.2rem;
+            margin-left: 1rem;
+        }
+
+        /* Card styles for consistency with control.html */
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 1.5rem;
+            transition: transform 0.3s, box-shadow 0.3s;
+            margin-bottom: 2rem;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .card h2 {
+            margin-bottom: 1.5rem;
+            color: var(--primary-color);
+            font-size: 1.5rem;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <header id="main-header">
+        <div class="header-container">
+            <div class="logo">
+                <i class="fas fa-cloud-sun"></i>
+                <span>Smart Clothesline System</span>
+            </div>
+            <div class="nav-links">
+                <a href="/" class="active">Home</a>
+                <a href="/realtime-monitoring">Real-time Monitoring</a>
+                <a href="/control">Manual Control</a>
+                <a href="/settings">System Settings</a>
+                <button id="theme-toggle" class="toggle-theme">
+                    <i class="fas fa-moon"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div id="theme-loading-screen">
+        <div class="loader"></div>
+    </div>
+
+    <!-- Hero Section with Background Image -->
+    <section class="hero-section fade-in">
+        <div class="hero-text">
+            <h1>Selamat Datang di Smart Clothesline System</h1>
+            <p>Solusi inovatif untuk mengelola jemuran Anda secara otomatis berdasarkan kondisi cuaca. Sistem cerdas yang memudahkan hidup Anda sehari-hari.</p>
+        </div>
+        <div class="hero-cta">
+            <div class="scroll-down-indicator" onclick="document.querySelector('#about').scrollIntoView({behavior: 'smooth'})">
+                <i class="fas fa-chevron-down"></i>
+            </div>
+        </div>
+    </section>
+
+    <!-- About Us Section -->
+    <section id="about" class="about-section fade-in">
+        <div class="about-content">
+            <h2>Tentang</h2>
+            <p>Smart Clothesline System adalah proyek inovatif yang dikembangkan oleh tim mahasiswa teknik yang berdedikasi untuk menciptakan solusi rumah pintar yang praktis dan bermanfaat.</p>
+            <p>Sistem ini menggunakan sensor cuaca dan teknologi otomatisasi untuk memastikan jemuran Anda terlindungi dari hujan dan mengoptimalkan pengeringan saat cuaca cerah.</p>
+            <p>Kami percaya bahwa teknologi seharusnya membuat kehidupan sehari-hari menjadi lebih mudah dan efisien. Melalui proyek ini, kami berharap dapat memberikan kontribusi kecil namun berarti untuk rumah tangga modern.</p>
             
-            @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-            }
-            
-            /* Flash animation for value updates */
-            @keyframes flash {
-                0% { background-color: transparent; }
-                50% { background-color: rgba(52, 152, 219, 0.3); }
-                100% { background-color: transparent; }
-            }
-            
-            .value-update {
-                animation: flash 0.5s;
-            }
-            
-            /* Connection status indicator */
-            .connection-status {
-                padding: 10px;
-                border-radius: 5px;
-                margin: 10px 0;
-                text-align: center;
-                font-weight: bold;
-            }
-            
-            .connected {
-                background-color: #d4edda;
-                color: #155724;
-            }
-            
-            .disconnected {
-                background-color: #f8d7da;
-                color: #721c24;
-            }
-            
-            .connecting {
-                background-color: #fff3cd;
-                color: #856404;
-            }
-        </style>
-    </head>
-    <body>
-        <header id="main-header">
-            <div class="header-container">
-                <div class="logo">
+            <div class="about-features">
+                <div class="feature">
                     <i class="fas fa-cloud-sun"></i>
-                    <span>Smart Clothesline System</span>
+                    <h3>Otomatisasi Cerdas</h3>
+                    <p>Sistem yang dapat membaca kondisi cuaca secara real-time dan mengambil tindakan yang tepat untuk melindungi jemuran Anda.</p>
                 </div>
-                <div class="nav-links">
-                    <a href="/">Home</a>
-                    <a href="/realtime-monitoring" class="active">Real-time Monitoring</a>
-                    <a href="/control">Manual Control</a>
-                    <a href="/settings">System Settings</a>
+                <div class="feature">
+                    <i class="fas fa-mobile-alt"></i>
+                    <h3>Kontrol Jarak Jauh</h3>
+                    <p>Kelola jemuran dari mana pun menggunakan aplikasi berbasis web yang responsif dan mudah digunakan.</p>
+                </div>
+                <div class="feature">
+                    <i class="fas fa-save"></i>
+                    <h3>Hemat Energi</h3>
+                    <p>Mengurangi konsumsi listrik dengan otomatisasi yang pintar dan efisien untuk kebutuhan rumah tangga.</p>
+                </div>
+                <div class="feature">
+                    <i class="fas fa-bell"></i>
+                    <h3>Notifikasi Cerdas</h3>
+                    <p>Dapatkan pemberitahuan langsung ke smartphone Anda saat terjadi perubahan cuaca atau sistem bekerja.</p>
+                </div>
+                <div class="feature">
+                    <i class="fas fa-chart-line"></i>
+                    <h3>Analisis Data</h3>
+                    <p>Monitor pola cuaca dan kinerja sistem untuk mengoptimalkan penggunaan dan efisiensi.</p>
+                </div>
+                <div class="feature">
+                    <i class="fas fa-shield-alt"></i>
+                    <h3>Tahan Cuaca</h3>
+                    <p>Didesain untuk bertahan dalam berbagai kondisi cuaca dan lingkungan untuk keandalan jangka panjang.</p>
                 </div>
             </div>
-        </header>
-        
-        <div class="container">
-            <!-- Connection Status Indicator -->
-            <div id="connection-status" class="connection-status connecting">
-                <i class="fas fa-sync fa-spin"></i> Menghubungkan ke sistem...
+        </div>
+    </section>
+
+    <!-- Team Section -->
+    <section id="team" class="team-section fade-in">
+        <div class="team-content">
+            <h2 class="team-heading">Tim Kami</h2>
+            <div class="team-container">
+                <!-- Team Member 1 -->
+                <div class="team-card">
+                    <img src="../static/images/Gambar1.jpg" alt="Fathan" class="team-image">
+                    <h3>Moh. Fathan Masloman</h3>
+                    <p class="role">System Designer</p>
+                    <p class="bio">Fathan berkontribusi dalam pelaksanaan tugas-tugas teknis dan pengembangan desain sistem. Ia juga terlibat dalam pengembangan konsep serta mendukung diskusi kelompok untuk mencari solusi bersama.</p>
+                    <div class="social-links">
+                        <a href="#"><i class="fab fa-linkedin"></i></a>
+                        <a href="#"><i class="fab fa-github"></i></a>
+                        <a href="#"><i class="fab fa-instagram"></i></a>
+                    </div>
+                </div>                
+
+                <!-- Team Member 2 -->
+                <div class="team-card">
+                    <img src="../static/images/Gambar2.jpg" alt="Serina" class="team-image">
+                    <h3>Serina Zera Patricia Tumoka</h3>
+                    <p class="role">Documentation Specialist</p>
+                    <p class="bio">Serina bertanggung jawab dalam dokumentasi proyek melalui pengambilan foto dan pencatatan perkembangan kegiatan. Ia juga ikut serta dalam pelaksanaan teknis serta berperan dalam diskusi dan pemecahan masalah bersama anggota lainnya.</p>
+                    <div class="social-links">
+                        <a href="#"><i class="fab fa-linkedin"></i></a>
+                        <a href="#"><i class="fab fa-github"></i></a>
+                        <a href="#"><i class="fab fa-instagram"></i></a>
+                    </div>
+                </div>
+
+                <!-- Team Member 3 -->
+                <div class="team-card">
+                    <img src="../static/images/Gambar3.jpg" alt="Ariel" class="team-image">
+                    <h3>Ariel Arya Putra</h3>
+                    <p class="role">Hardware Designer</p>
+                    <p class="bio">Ariel berperan dalam setiap tahapan pengerjaan proyek, terutama pada proses perakitan perangkat keras dan pengkabelan sistem. Ia juga merancang desain miniatur fisik jemuran otomatis sebagai representasi nyata dari sistem yang dikembangkan.</p>
+                    <div class="social-links">
+                        <a href="#"><i class="fab fa-linkedin"></i></a>
+                        <a href="#"><i class="fab fa-github"></i></a>
+                        <a href="#"><i class="fab fa-instagram"></i></a>
+                    </div>
+                </div>
+
+                <!-- Team Member 4 -->
+                <div class="team-card">
+                    <img src="../static/images/Gambar4.jpg" alt="Gilang" class="team-image">
+                    <h3>Gilang Ramadhan S. Luawo</h3>
+                    <p class="role">Technical Assistant</p>
+                    <p class="bio">Gilang membantu dalam kegiatan teknis kelompok, termasuk desain sistem dan pengembangan prototipe. Ia juga ikut berpartisipasi dalam diskusi dan pengambilan keputusan selama proyek berlangsung.</p>
+                    <div class="social-links">
+                        <a href="#"><i class="fab fa-linkedin"></i></a>
+                        <a href="#"><i class="fab fa-github"></i></a>
+                        <a href="#"><i class="fab fa-instagram"></i></a>
+                    </div>
+                </div>
+
+                <!-- Team Member 5 -->
+                <div class="team-card">
+                    <img src="../static/images/Gambar5.jpg" alt="Ando" class="team-image">
+                    <h3>Ando Dian Bawental</h3>
+                    <p class="role">IoT System Architect</p>
+                    <p class="bio">Ando merupakan pengusul awal ide pengembangan Sistem Jemuran Otomatis. Ia berkontribusi dalam pengumpulan data, perumusan konsep sistem, dan memberikan arahan dalam pengembangan logika pemrograman.</p>
+                    <div class="social-links">
+                        <a href="#"><i class="fab fa-linkedin"></i></a>
+                        <a href="#"><i class="fab fa-github"></i></a>
+                        <a href="#"><i class="fab fa-instagram"></i></a>
+                    </div>
+                </div>
+
+                <!-- Team Member 6 -->
+                <div class="team-card">
+                    <img src="../static/images/Gambar6.JPEG" alt="Edi" class="team-image">
+                    <h3>Edi</h3>
+                    <p class="role">Developer</p>
+                    <p class="bio">Edi terlibat dalam proses perakitan alat, penyusunan kabel, dan pencarian komponen. Ia juga membantu memastikan sistem perangkat keras dan perangkat lunak dapat berjalan dengan baik.</p>
+                    <div class="social-links">
+                        <a href="#"><i class="fab fa-linkedin"></i></a>
+                        <a href="#"><i class="fab fa-github"></i></a>
+                        <a href="#"><i class="fab fa-instagram"></i></a>
+                    </div>
+                </div>
             </div>
-            
-            <div class="dashboard">
-                <div class="card">
-                    <h2>Status Sistem</h2>
-                    <div class="data-container">
-                        <div class="data-item">
-                            <span>Intensitas Cahaya (LDR):</span>
-                            <span id="ldr-value" class="digital-value">-</span>
-                        </div>
-                        <div class="data-item">
-                            <span>Sensor Hujan:</span>
-                            <span id="rain-value" class="digital-value">-</span>
-                        </div>
-                        <div class="data-item">
-                            <span>Status Jemuran:</span>
-                            <span id="status-value" class="digital-value">-</span>
-                        </div>
-                        <div class="data-item">
-                            <span>Pembaruan Terakhir:</span>
-                            <span id="time-value" class="digital-value">-</span>
-                        </div>
+        </div>
+    </section>
+
+    <!-- Footer Section -->
+    <footer class="main-footer">
+        <div class="footer-top">
+            <div class="footer-container">
+                <div class="footer-info">
+                    <div class="footer-logo">
+                        <i class="fas fa-cloud-sun"></i>
+                        <span>Smart Clothesline System</span>
+                    </div>
+                    <p class="footer-desc">Solusi jemuran otomatis dengan teknologi IoT untuk kehidupan modern yang lebih nyaman.</p>
+                    <div class="footer-social">
+                        <a href="#" class="social-icon"><i class="fab fa-facebook"></i></a>
+                        <a href="#" class="social-icon"><i class="fab fa-twitter"></i></a>
+                        <a href="#" class="social-icon"><i class="fab fa-instagram"></i></a>
+                        <a href="#" class="social-icon"><i class="fab fa-github"></i></a>
                     </div>
                 </div>
                 
-                <div class="card">
-                    <h2>Prediksi Cuaca</h2>
-                    <div class="data-item">
-                        <span>Prediksi 1 Jam Ke Depan:</span>
-                        <span id="rain-prediction" class="digital-value">-</span>
+                <div class="footer-links">
+                    <div class="footer-link-group">
+                        <h3>Navigasi</h3>
+                        <ul>
+                            <li><a href="/">Beranda</a></li>
+                            <li><a href="/realtime-monitoring">Monitoring</a></li>
+                            <li><a href="/control">Kontrol Manual</a></li>
+                            <li><a href="/settings">Pengaturan</a></li>
+                        </ul>
                     </div>
-                    <div class="data-item">
-                        <span>Tingkat Kepercayaan:</span>
-                        <span id="rain-confidence" class="digital-value">-</span>
+                    <div class="footer-link-group">
+                        <h3>Teknologi</h3>
+                        <ul>
+                            <li><a href="#">Arduino</a></li>
+                            <li><a href="#">ESP32</a></li>
+                            <li><a href="#">Sensor DHT22</a></li>
+                            <li><a href="#">Servo Motor</a></li>
+                        </ul>
                     </div>
-                    <div class="loading-spinner" id="prediction-spinner"></div>
+                    <div class="footer-link-group">
+                        <h3>Bantuan</h3>
+                        <ul>
+                            <li><a href="#">Panduan Pengguna</a></li>
+                            <li><a href="#">Troubleshooting</a></li>
+                            <li><a href="#">FAQ</a></li>
+                            <li><a href="#">Kontak</a></li>
+                        </ul>
+                    </div>
                 </div>
-            </div>
-            
-            <div class="chart-container">
-                <canvas id="lightChart"></canvas>
-            </div>
-            
-            <div class="chart-container">
-                <canvas id="rainChart"></canvas>
             </div>
         </div>
         
-        <footer>
-            <p>&copy; 2023 Smart Clothesline System. All rights reserved.</p>
-            <p>IoT Innovation Lab</p>
-        </footer>
-        
+        <div class="footer-bottom">
+            <div class="footer-container">
+                <div class="footer-copyright">
+                    <p>&copy; 2023 Smart Clothesline System. All rights reserved.</p>
+                </div>
+                <div class="footer-tech">
+                    <span class="tech-badge"><i class="fab fa-arduino"></i> Arduino</span>
+                    <span class="tech-badge"><i class="fas fa-microchip"></i> ESP32</span>
+                    <span class="tech-badge"><i class="fas fa-wifi"></i> IoT</span>
+                    <span class="tech-badge"><i class="fas fa-cloud"></i> Cloud</span>
+                </div>
+            </div>
+        </div>
+    </footer>
         <script>
-            // Initialize Charts
-            const lightCtx = document.getElementById('lightChart').getContext('2d');
-            const rainCtx = document.getElementById('rainChart').getContext('2d');
-        
-            const chartConfig = {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: { beginAtZero: true },
-                    x: { display: true }
-                },
-                plugins: {
-                    legend: { position: 'top' }
+            // Handle header transparency on scroll
+            window.addEventListener('scroll', function() {
+                const header = document.getElementById('main-header');
+                if (window.scrollY > 50) {
+                    header.classList.add('scrolled');
+                } else {
+                    header.classList.remove('scrolled');
                 }
-            };
-        
-            const lightChart = new Chart(lightCtx, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'Intensitas Cahaya (LDR)',
-                        data: [],
-                        borderColor: '#3498db',
-                        tension: 0.4,
-                        fill: false
-                    }]
-                },
-                options: chartConfig
             });
-        
-            const rainChart = new Chart(rainCtx, {
-                type: 'line',
-                data: {
-                    labels: [],
-                    datasets: [{
-                        label: 'Sensor Hujan',
-                        data: [],
-                        borderColor: '#e74c3c',
-                        tension: 0.4,
-                        fill: false
-                    }]
-                },
-                options: chartConfig
+
+            // Team card animations
+            document.querySelectorAll('.team-card').forEach(card => {
+                card.addEventListener('mousemove', (e) => {
+                    const rect = card.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    
+                    card.style.transform = `
+                        perspective(1000px)
+                        rotateX(${(y - rect.height/2) / 30}deg)
+                        rotateY(${-(x - rect.width/2) / 30}deg)
+                        translateY(-10px)
+                    `;
+                });
+                
+                card.addEventListener('mouseleave', () => {
+                    card.style.transform = 'translateY(0)';
+                });
             });
             
-            // Track reconnection attempts
-            let reconnectAttempts = 0;
-            const MAX_RECONNECT_ATTEMPTS = 5;
-            let reconnectInterval = 3000; // Start with 3 seconds
-            let dataFetchTimer = null;
-            let socket = null;
-            
-            // Connection status indicator functions
-            function updateConnectionStatus(status, message) {
-                const statusElement = document.getElementById('connection-status');
-                statusElement.className = 'connection-status ' + status;
-                
-                switch(status) {
-                    case 'connected':
-                        statusElement.innerHTML = '<i class="fas fa-check-circle"></i> ' + (message || 'Terhubung ke sistem');
-                        break;
-                    case 'disconnected':
-                        statusElement.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + (message || 'Terputus dari sistem');
-                        break;
-                    case 'connecting':
-                        statusElement.innerHTML = '<i class="fas fa-sync fa-spin"></i> ' + (message || 'Menghubungkan ke sistem...');
-                        break;
-                }
-            }
-            
-            // Setup connection using Socket.IO instead of native WebSocket
-            function setupDataConnection() {
-                updateConnectionStatus('connecting', 'Menghubungkan ke Socket.IO...');
-                
-                try {
-                    // Connect to Socket.IO on the same host and port as the Flask application
-                    const socketOptions = {
-                        transports: ['websocket', 'polling'],
-                        forceNew: true,
-                        reconnectionAttempts: MAX_RECONNECT_ATTEMPTS,
-                        timeout: 10000
-                    };
+            // Smooth scrolling for internal links
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function (e) {
+                    e.preventDefault();
                     
-                    // Connect to the server using Socket.IO
-                    socket = io(window.location.origin, socketOptions);
+                    document.querySelector(this.getAttribute('href')).scrollIntoView({
+                        behavior: 'smooth'
+                    });
+                });
+            });
+
+            // Theme and fade-in functions
+            function applyTheme() {
+                document.getElementById('theme-loading-screen').classList.add('active');
+                
+                const currentTheme = localStorage.getItem('theme');
+                const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
+                
+                if (currentTheme === 'dark') {
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                } else if (currentTheme === 'light') {
+                    document.documentElement.setAttribute('data-theme', 'light');
+                } else if (prefersDarkScheme.matches) {
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                }
+                
+                setTimeout(() => {
+                    document.getElementById('theme-loading-screen').classList.remove('active');
+                }, 500);
+            }
+
+            document.addEventListener('DOMContentLoaded', () => {
+                applyTheme();
+                
+                // Show elements with fade-in animation
+                document.querySelectorAll('.fade-in').forEach((element, index) => {
+                    setTimeout(() => {
+                        element.style.opacity = '1';
+                        element.style.transform = 'translateY(0)';
+                    }, 300 * index);
+                });
+                
+                // Theme toggle button
+                document.getElementById('theme-toggle').addEventListener('click', () => {
+                    document.getElementById('theme-loading-screen').classList.add('active');
                     
-                    // Socket.IO event handlers
-                    socket.on('connect', function() {
-                        console.log('Socket.IO connection established');
-                        updateConnectionStatus('connected', 'Terhubung via Socket.IO');
-                        reconnectAttempts = 0; // Reset reconnect counter on success
+                    setTimeout(() => {
+                        const currentTheme = document.documentElement.getAttribute('data-theme');
+                        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
                         
-                        // Cancel polling if it was running
-                        if (dataFetchTimer) {
-                            clearInterval(dataFetchTimer);
-                            dataFetchTimer = null;
-                        }
+                        document.documentElement.setAttribute('data-theme', newTheme);
+                        localStorage.setItem('theme', newTheme);
                         
-                        // Fetch weather prediction immediately
-                        updateWeatherPrediction();
-                    });
-                    
-                    socket.on('sensor_data', function(data) {
-                        console.log('Received Socket.IO data:', data);
-                        updateDashboardData(data);
-                    });
-                    
-                    socket.on('disconnect', function() {
-                        console.log('Socket.IO disconnected');
-                        updateConnectionStatus('disconnected', 'Socket.IO terputus');
+                        // Update toggle button icon
+                        const themeIcon = document.querySelector('#theme-toggle i');
+                        themeIcon.className = newTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
                         
-                        // Try fallback to polling
-                        tryFallbackToPolling();
-                    });
-                    
-                    socket.on('connect_error', function(error) {
-                        console.error('Socket.IO connection error:', error);
-                        updateConnectionStatus('disconnected', 'Gagal terhubung ke Socket.IO');
-                        
-                        // Try fallback to polling
-                        tryFallbackToPolling();
-                    });
-                    
-                } catch (error) {
-                    console.error('Error setting up Socket.IO:', error);
-                    tryFallbackToPolling();
-                }
-            }
-            
-            function tryFallbackToPolling() {
-                if (socket) {
-                    socket.disconnect();
-                    socket = null;
+                        setTimeout(() => {
+                            document.getElementById('theme-loading-screen').classList.remove('active');
+                        }, 300);
+                    }, 200);
+                });
+                
+                // Set correct theme icon on load
+                const currentTheme = document.documentElement.getAttribute('data-theme');
+                const themeIcon = document.querySelector('#theme-toggle i');
+                if (themeIcon) {
+                    themeIcon.className = currentTheme === 'dark' ? 'fas fa-sun' : 'fas fa-moon';
                 }
                 
-                updateConnectionStatus('connecting', 'Mencoba koneksi HTTP polling...');
-                console.log('Falling back to HTTP polling');
-                
-                // Clear any existing timer
-                if (dataFetchTimer) {
-                    clearInterval(dataFetchTimer);
+                // Initialize charts and data (if available on this page)
+                if (typeof initCharts === 'function') {
+                    initCharts();
                 }
-                
-                // Test a single fetch to see if it works
-                fetch('/get_data')
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error(`HTTP error! Status: ${response.status}`);
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        console.log('Initial polling data fetch successful:', data);
-                        updateConnectionStatus('connected', 'Terhubung via HTTP polling');
-                        updateDashboardData(data);
-                        
-                        // If successful, start regular polling
-                        dataFetchTimer = setInterval(updateDataViaPolling, 3000);
-                        
-                        // Also fetch weather prediction
-                        updateWeatherPrediction();
-                    })
-                    .catch(error => {
-                        console.error('Polling fetch failed:', error);
-                        updateConnectionStatus('disconnected', 'Tidak dapat terhubung ke server');
-                        
-                        // Try again if within retry limit
-                        if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-                            setTimeout(tryFallbackToPolling, reconnectInterval);
-                            reconnectAttempts++;
-                            reconnectInterval *= 1.5; // Exponential backoff
-                        }
-                    });
-            }
-            
-            // Update data via HTTP polling
-            function updateDataViaPolling() {
-                fetch('/get_data')
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error(`HTTP error! Status: ${response.status}`);
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        updateDashboardData(data);
-                    })
-                    .catch(error => {
-                        console.error('Error polling data:', error);
-                        updateConnectionStatus('disconnected', 'Koneksi terputus!');
-                        
-                        // Cancel polling timer
-                        if (dataFetchTimer) {
-                            clearInterval(dataFetchTimer);
-                            dataFetchTimer = null;
-                        }
-                        
-                        // Try to reconnect
-                        if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-                            setTimeout(setupDataConnection, reconnectInterval);
-                            reconnectAttempts++;
-                        } else {
-                            updateConnectionStatus('disconnected', 'Gagal menghubungkan. Mohon refresh halaman.');
-                        }
-                    });
-            }
-        
-            // Update Dashboard with data
-            function updateDashboardData(data) {
-                console.log('Updating dashboard with data:', data);
-                
-                if (!data) {
-                    console.warn('No data provided to updateDashboardData');
-                    return;
+                if (typeof updateSensorData === 'function') {
+                    updateSensorData();
+                    // Set interval for real-time updates
+                    setInterval(updateSensorData, 5000);
                 }
-                
-                // Update dashboard values with animation
-                updateElementWithAnimation('ldr-value', data.ldr !== undefined ? data.ldr : '-');
-                
-                // Update rain value with text interpretation
-                const rainValue = data.rain !== undefined ? data.rain : '-';
-                const rainText = rainValue !== '-' ? (rainValue < 500 ? "TERDETEKSI" : "TIDAK ADA") : '-';
-                updateElementWithAnimation('rain-value', rainText);
-                
-                // Update status
-                updateElementWithAnimation('status-value', data.status || '-');
-                
-                // Format timestamp nicely
-                const timestamp = new Date().toLocaleTimeString();
-                updateElementWithAnimation('time-value', timestamp);
-                
-                // Add datapoint to charts
-                const time = new Date().toLocaleTimeString();
-                
-                if (data.ldr !== undefined) {
-                    updateChart(lightChart, data.ldr, time);
-                }
-                
-                if (data.rain !== undefined) {
-                    updateChart(rainChart, data.rain, time);
-                }
-            }
-            
-            // Helper function to update element with animation
-            function updateElementWithAnimation(elementId, value) {
-                const element = document.getElementById(elementId);
-                if (element) {
-                    // Only update if value has changed
-                    if (element.textContent !== String(value)) {
-                        element.textContent = value;
-                        element.classList.add('value-update');
-                        setTimeout(() => element.classList.remove('value-update'), 500);
-                    }
-                }
-            }
-            
-            // Chart update function
-            function updateChart(chart, value, label) {
-                chart.data.labels.push(label);
-                chart.data.datasets[0].data.push(value);
-                
-                if (chart.data.labels.length > 15) {
-                    chart.data.labels.shift();
-                    chart.data.datasets[0].data.shift();
-                }
-                
-                chart.update();
-            }
-        
-            // Weather prediction update function with improved error handling
-            function updateWeatherPrediction() {
-                console.log("Updating weather prediction...");
-                
-                // Show spinner while fetching prediction
-                document.getElementById('prediction-spinner').style.display = 'block';
-                
-                fetch('/predict-weather')
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error(`HTTP error! Status: ${response.status}`);
-                        }
-                        return response.json();
-                    })
-                    .then(data => {
-                        console.log("Weather prediction data received:", data);
-                        document.getElementById('prediction-spinner').style.display = 'none';
-                        
-                        const predictionElement = document.getElementById('rain-prediction');
-                        const confidenceElement = document.getElementById('rain-confidence');
-                        
-                        if (data.error) {
-                            console.warn("Weather prediction error:", data.error);
-                            updateElementWithAnimation('rain-prediction', "MODEL BELUM SIAP");
-                            updateElementWithAnimation('rain-confidence', "N/A");
-                            predictionElement.style.color = '#f39c12'; // Orange for warning
-                            confidenceElement.style.color = '#f39c12';
-                            return;
-                        }
-                        
-                        if (data.will_rain !== undefined && data.probability !== undefined) {
-                            // Update prediction display
-                            updateElementWithAnimation('rain-prediction', data.will_rain ? 'HUJAN' : 'CERAH');
-                            const confidencePercent = Math.round(data.probability * 100);
-                            updateElementWithAnimation('rain-confidence', `${confidencePercent}%`);
-                            
-                            // Set color based on prediction
-                            predictionElement.style.color = data.will_rain ? '#e74c3c' : '#2ecc71';
-                            confidenceElement.style.color = data.will_rain ? '#e74c3c' : '#2ecc71';
-                        } else {
-                            console.warn("Received invalid weather prediction data format");
-                            updateElementWithAnimation('rain-prediction', "ERROR");
-                            updateElementWithAnimation('rain-confidence', "ERROR");
-                            predictionElement.style.color = '#e74c3c';
-                            confidenceElement.style.color = '#e74c3c';
-                        }
-                    })
-                    .catch(error => {
-                        console.error("Error fetching weather prediction:", error);
-                        document.getElementById('prediction-spinner').style.display = 'none';
-                        updateElementWithAnimation('rain-prediction', "KESALAHAN KONEKSI");
-                        updateElementWithAnimation('rain-confidence', "N/A");
-                    });
-            }
-            
-            // Initialize everything when the page loads
+            });
+
+            // Footer visibility on scroll
             document.addEventListener('DOMContentLoaded', function() {
-                console.log("Page loaded, initializing data connection...");
-                setupDataConnection();
+                const footer = document.querySelector('footer');
+                let lastScroll = 0;
                 
-                // Periodically update weather prediction regardless of other connection type
-                setInterval(updateWeatherPrediction, 30000);
+                window.addEventListener('scroll', function() {
+                    const currentScroll = window.pageYOffset || document.documentElement.scrollTop;
+                    
+                    if (currentScroll > lastScroll) {
+                        // Scrolling down - show footer
+                        footer.classList.add('visible');
+                    } else if (currentScroll < lastScroll) {
+                        // Scrolling up - hide if at top
+                        if (currentScroll <= 0) {
+                            footer.classList.remove('visible');
+                        }
+                    }
+                    lastScroll = currentScroll <= 0 ? 0 : currentScroll;
+                });
             });
         </script>
     </body>
-    </html></parameter>
-    </invoke>
+</html>
