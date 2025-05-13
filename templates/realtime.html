@@ -382,7 +382,7 @@
             }
         }
         
-        // Helper function to update element with animation
+
         function updateElementWithAnimation(elementId, value) {
             const element = document.getElementById(elementId);
             if (element) {
@@ -395,7 +395,7 @@
             }
         }
         
-        // Chart update function
+
         function updateChart(chart, value, label) {
             chart.data.labels.push(label);
             chart.data.datasets[0].data.push(value);
@@ -407,6 +407,96 @@
             
             chart.update();
         }
+
+        function checkModelStatus() {
+            console.log("Memeriksa status model...");
+            
+            fetch('/check-model-status')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("Status model:", data);
+                    
+                    // Tampilkan informasi diagnostik di console
+                    if (!data.model_trained_flag || !data.model_loaded_in_memory) {
+                        console.warn("Model belum terlatih atau dimuat!");
+                        
+                        if (!data.model_file_exists) {
+                            console.warn("File model tidak ditemukan!");
+                        } else if (data.model_file_size === 0) {
+                            console.warn("File model ada tapi kosong!");
+                        }
+                        
+                        if (!data.enough_data) {
+                            console.warn(`Data tidak cukup. Dibutuhkan ${data.min_required_data}, tersedia ${data.data_count}`);
+                        } else {
+                            console.log("Data cukup untuk pelatihan. Mencoba paksa pelatihan...");
+                            forceTrainModel();
+                        }
+                    } else {
+                        console.log("Model terlatih dan siap digunakan");
+                        updateWeatherPrediction();
+                    }
+                })
+                .catch(error => {
+                    console.error("Error memeriksa status model:", error);
+                });
+        }
+
+
+        function forceTrainModel() {
+            console.log("Memulai pelatihan paksa model...");
+            document.getElementById('prediction-spinner').style.display = 'block';
+            
+            fetch('/force-train-model')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("Hasil pelatihan model:", data);
+                    document.getElementById('prediction-spinner').style.display = 'none';
+                    
+                    if (data.status === 'success') {
+                        updateElementWithAnimation('rain-prediction', "MODEL BARU SIAP");
+                        updateElementWithAnimation('rain-confidence', `Akurasi: ${Math.round(data.accuracy * 100)}%`);
+                        
+                        // Update prediksi cuaca dengan model yang baru dilatih
+                        setTimeout(updateWeatherPrediction, 1000);
+                    } else {
+                        updateElementWithAnimation('rain-prediction', "PELATIHAN GAGAL");
+                        updateElementWithAnimation('rain-confidence', data.message || "Coba lagi nanti");
+                    }
+                    
+                    if (data.warning) {
+                        console.warn(data.warning);
+                    }
+                })
+                .catch(error => {
+                    console.error("Error melatih model:", error);
+                    document.getElementById('prediction-spinner').style.display = 'none';
+                    updateElementWithAnimation('rain-prediction', "PELATIHAN ERROR");
+                    updateElementWithAnimation('rain-confidence', "Coba lagi nanti");
+                });
+        }
+
+        // Tambahkan pemanggilan checkModelStatus saat halaman dimuat
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log("Page loaded, initializing data connection...");
+            setupDataConnection();
+            
+            // Periksa status model dan latih jika perlu
+            checkModelStatus();
+            
+            // Periodically update weather prediction regardless of other connection type
+            setInterval(updateWeatherPrediction, 30000);
+        });
     
         // Weather prediction update function with improved error handling
         function updateWeatherPrediction() {

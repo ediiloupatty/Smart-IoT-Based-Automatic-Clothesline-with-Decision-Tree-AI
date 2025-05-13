@@ -25,19 +25,32 @@ class WeatherPredictor:
         self.window_size = 3  # Reduce from 6 to 3
         self.threshold = 0.65
         
-        # Try to load model if it exists
-        try:
-            self.load_model()
-            config.MODEL_INFO['trained'] = True
-        except (FileNotFoundError, EOFError):
-            print("Model file not found or empty. Will need training.")
-            config.MODEL_INFO['trained'] = False
-        except KeyError as e:
-            print(f"Incompatible model format: {e}. Model needs retraining.")
-            config.MODEL_INFO['trained'] = False
-            self.build_model()  # Initialize a new model
-        except Exception as e:
-            print(f"Unexpected error loading model: {e}")
+        # Pastikan folder models ada
+        os.makedirs('models', exist_ok=True)
+        
+        # Cek apakah file model ada
+        model_path = 'models/weather_model.joblib'
+        scaler_path = 'models/scaler.save'
+        
+        print(f"Mencari model di: {os.path.abspath(model_path)}")
+        
+        if os.path.exists(model_path) and os.path.getsize(model_path) > 0:
+            try:
+                self.model = joblib.load(model_path)
+                if os.path.exists(scaler_path) and os.path.getsize(scaler_path) > 0:
+                    self.scaler = joblib.load(scaler_path)
+                else:
+                    print("File scaler tidak ditemukan, menggunakan scaler default")
+                
+                config.MODEL_INFO['trained'] = True
+                print("Model berhasil dimuat")
+            except Exception as e:
+                print(f"Error saat memuat model: {e}")
+                self.build_model()  # Buat model baru jika gagal memuat
+                config.MODEL_INFO['trained'] = False
+        else:
+            print("File model tidak ditemukan, perlu dilatih")
+            self.build_model()  # Inisialisasi model baru
             config.MODEL_INFO['trained'] = False
 
     def load_model(self, filename='models/weather_model.joblib'):
@@ -255,17 +268,27 @@ class WeatherPredictor:
     def save_model(self, filename='models/weather_model.joblib'):
         """Save the trained model to disk"""
         try:
+            # Pastikan direktori models ada
             dir_path = os.path.dirname(filename)
-            if not os.path.exists(dir_path):
-                os.makedirs(dir_path)
-            print(f"Saving model to {os.path.abspath(filename)}")
-            # Use protocol=4 which is compatible with Python 3.4+ 
-            # and works consistently across environments
+            os.makedirs(dir_path, exist_ok=True)
+            
+            print(f"Menyimpan model ke {os.path.abspath(filename)}")
+            
+            # Periksa apakah model sudah dilatih
+            if self.model is None:
+                raise ValueError("Model belum dilatih, tidak dapat disimpan")
+                
+            # Gunakan protocol=4 untuk kompatibilitas Python 3.4+
             joblib.dump(self.model, filename, protocol=4)
             joblib.dump(self.scaler, os.path.join(dir_path, 'scaler.save'), protocol=4)
-            print("Model saved successfully")
+            
+            # Set flag model_trained
+            config.MODEL_INFO['trained'] = True
+            config.save_setting('model_trained', 'True')
+            
+            print("Model berhasil disimpan")
         except Exception as e:
-            print(f"Error saving model: {e}")
+            print(f"Error saat menyimpan model: {e}")
             raise
 
 
