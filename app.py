@@ -13,7 +13,6 @@ import config
 from utils.database import get_latest_data, get_data_count, get_all_data_records, get_recent_sensor_data
 from utils.nodemcu_manager import get_nodemcu_data, send_command_to_nodemcu, check_auto_conditions
 from models.weather_predictor import WeatherPredictor, start_auto_training
-from flask_socketio import SocketIO, emit
 
 # Create Flask application
 app = Flask(__name__)
@@ -22,21 +21,8 @@ app.config.from_object(config.Config)
 # Initialize CORS with the configuration
 CORS(app, resources={r"/*": {"origins": "*"}})
 
-# Initialize SocketIO with CORS and other configurations
-socketio = SocketIO(
-    app,
-    cors_allowed_origins="*",
-    ping_timeout=config.Config.SOCKETIO_PING_TIMEOUT,
-    ping_interval=config.Config.SOCKETIO_PING_INTERVAL,
-    async_mode=config.Config.SOCKETIO_ASYNC_MODE,
-    logger=True,
-    engineio_logger=True,
-    transports=['websocket', 'polling']
-)
-
 print(f"Current working directory: {os.getcwd()}")
 print(f"Absolute path to app: {os.path.abspath(__file__)}")
-print(f"Socket.IO configuration: ping_timeout={config.Config.SOCKETIO_PING_TIMEOUT}, ping_interval={config.Config.SOCKETIO_PING_INTERVAL}")
 
 # Initialize weather predictor model
 try:
@@ -46,7 +32,6 @@ except Exception as e:
     print(f"Error initializing weather predictor: {e}")
     import traceback
     print(traceback.format_exc())
-    # Continue with a basic predictor that will need training
     weather_predictor = WeatherPredictor()
     config.MODEL_INFO['trained'] = False
 
@@ -75,10 +60,6 @@ def nodemcu_reader():
                     data.get('status', ''),
                     data.get('rotation', 0)
                 )
-                
-                # Broadcast data via WebSocket
-                socketio.emit('sensor_data', data, namespace='/')
-                print(f"Emitted sensor data: {data}")
             else:
                 print("No data received from NodeMCU")
                 
@@ -118,7 +99,7 @@ def get_data():
     if data:
         print(f"Data from database: {data}")
         return jsonify(data)
-    return jsonify({})  # Return empty JSON if no data found
+    return jsonify({})
 
 @app.route('/check-data-count')
 def check_data_count():
@@ -140,7 +121,6 @@ def send_command():
 @app.route('/train-model', methods=['POST'])
 def handle_train():
     try:
-        # First check if we have enough data
         count = get_data_count()
         print(f"Training model with {count} data records")
         
@@ -148,12 +128,9 @@ def handle_train():
         if count < min_required:
             return jsonify({'error': f'Insufficient data. At least {min_required} data points required, currently have {count}'}), 400
             
-        # Continue with training
         try:
             result = weather_predictor.train()
-            return jsonify({
-                'accuracy': result['accuracy']
-            })
+            return jsonify({'accuracy': result['accuracy']})
         except Exception as e:
             import traceback
             error_details = traceback.format_exc()
@@ -168,7 +145,6 @@ def handle_train():
 @app.route('/predict-weather')
 def predict_weather():
     try:
-        # Check if model is trained
         if not config.MODEL_INFO.get('trained', False):
             return jsonify({
                 'error': 'Model not trained yet',
@@ -176,11 +152,9 @@ def predict_weather():
                 'probability': 0
             })
         
-        # Get the recent data from database - we need window_size-1 records
         window_size = weather_predictor.window_size
         recent_data = get_recent_sensor_data(window_size-1)
         
-        # Check if we have enough data
         if len(recent_data) < window_size-1:
             return jsonify({
                 'error': f'Not enough recent data for prediction. Need {window_size-1} records.',
@@ -188,16 +162,13 @@ def predict_weather():
                 'probability': 0
             })
         
-        # Log the data we're using for prediction
         print(f"Using data for prediction: {recent_data}")
         
         try:
-            # Get prediction
             prediction, probability = weather_predictor.predict_next_hour(recent_data)
             print(f"Prediction result: {prediction}, probability: {probability}")
             
-            # Convert prediction to boolean based on threshold
-            will_rain = bool(prediction == 1)  # If prediction is 1, it will rain
+            will_rain = bool(prediction == 1)
             
             return jsonify({
                 'will_rain': will_rain,
@@ -222,30 +193,11 @@ def predict_weather():
             'probability': 0
         })
 
-@socketio.on('connect')
-def handle_connect():
-    print('Client connected')
-    # Emit the current data to the new client
-    try:
-        data = get_latest_data()
-        if data:
-            emit('sensor_data', data)
-            print(f"Sent initial data to client: {data}")
-        else:
-            print("No initial data to send")
-    except Exception as e:
-        print(f"Error sending initial data to new client: {str(e)}")
-
-@socketio.on('disconnect')
-def handle_disconnect():
-    print('Client disconnected')
-
 # =============================================
 # ROUTES FOR SETTINGS PAGE
 # =============================================
 @app.route('/get-config')
 def get_config():
-    """Get current system configuration"""
     return jsonify({
         'base_url': config.NODEMCU_CONFIG['base_url'],
         'timeout': config.NODEMCU_CONFIG['timeout']
@@ -254,15 +206,12 @@ def get_config():
 @app.route('/save-config', methods=['POST'])
 def save_config():
     try:
-        # Get configuration from request
         conf = request.json
         print(f"Saving config: {conf}")
         
-        # Update NodeMCU configuration
         config.NODEMCU_CONFIG['base_url'] = conf['base_url']
         config.NODEMCU_CONFIG['timeout'] = float(conf['timeout'])
         
-        # Save settings to database
         config.save_setting('nodemcu_base_url', conf['base_url'])
         config.save_setting('nodemcu_timeout', str(conf['timeout']))
         
@@ -272,22 +221,18 @@ def save_config():
 
 @app.route('/get-auto-settings')
 def get_auto_settings():
-    """Get auto mode settings"""
     return jsonify(config.AUTO_SETTINGS)
 
 @app.route('/save-auto-settings', methods=['POST'])
 def save_auto_settings():
     try:
-        # Get settings from request
         settings = request.json
         print(f"Saving auto settings: {settings}")
         
-        # Update auto settings
         config.AUTO_SETTINGS['enabled'] = settings['enabled']
         config.AUTO_SETTINGS['lightThreshold'] = int(settings['lightThreshold'])
         config.AUTO_SETTINGS['rainThreshold'] = int(settings['rainThreshold'])
         
-        # Save settings to database
         config.save_setting('auto_enabled', str(settings['enabled']))
         config.save_setting('light_threshold', str(settings['lightThreshold']))
         config.save_setting('rain_threshold', str(settings['rainThreshold']))
@@ -298,25 +243,20 @@ def save_auto_settings():
 
 @app.route('/get-model-info')
 def get_model_info():
-    """Get model information"""
     return jsonify(config.MODEL_INFO)
 
 @app.route('/check-nodemcu')
 def check_nodemcu():
-    """Check if NodeMCU is available"""
     from utils.nodemcu_manager import check_nodemcu_connection
     return check_nodemcu_connection()
 
 @app.route('/view-data')
 def view_data():
-    """Get all sensor data records"""
     rows = get_all_data_records()
     return jsonify(rows)
 
-
 @app.route('/api/nodemcu/data', methods=['POST', 'OPTIONS'])
 def receive_nodemcu_data():
-    # Handle CORS preflight requests
     if request.method == 'OPTIONS':
         response = app.make_default_options_response()
         return response
@@ -333,17 +273,12 @@ def receive_nodemcu_data():
         
         from utils.database import save_sensor_data
 
-        # Save data to database
         save_sensor_data(
             data.get('ldr', 0),
             data.get('rain', 0),
             data.get('status', 'UNKNOWN'),
             data.get('rotation', 0)
         )
-
-        # Immediately emit data to all connected clients via WebSocket
-        socketio.emit('sensor_data', data)
-        print(f"Emitted received data to clients: {data}")
 
         return jsonify({'status': 'success', 'message': 'Data received successfully'})
     except Exception as e:
@@ -354,7 +289,6 @@ def receive_nodemcu_data():
 # MAIN EXECUTION
 # =============================================
 if __name__ == '__main__':
-    # Start the threads
     config.threads_running = True
     
     # Start background threads
@@ -362,22 +296,18 @@ if __name__ == '__main__':
     nodemcu_thread.daemon = True
     nodemcu_thread.start()
     
-    # Start the automatic model training thread
     try:
         auto_train_thread = start_auto_training(weather_predictor)
     except Exception as e:
         print(f"Error starting auto-train thread: {e}")
     
     try:
-        # Use socketio.run instead of app.run
-        socketio.run(
-            app,
+        app.run(
             host='0.0.0.0',
             port=int(os.environ.get('PORT', 5000)),
             debug=False,
             use_reloader=False
         )
     finally:
-        # Ensure threads are properly signaled to stop when app exits
         config.threads_running = False
         print("Shutting down application and threads...")

@@ -1,6 +1,6 @@
 """
-NodeMCU interface utilities for PY-PY Application
-Handles communication with NodeMCU ESP8266 controller
+NodeMCU interface utilities for Smart Clothesline System Application
+Handles communication with NodeMCU ESP8266 controller via HTTP polling
 """
 
 import requests
@@ -9,54 +9,113 @@ import sys
 import os
 import socket
 import json
+import threading
 from datetime import datetime
 
 # Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import config
-from utils.database import get_latest_data
+from utils.database import get_latest_data, save_sensor_data
 
-def get_nodemcu_data():
-    """Get sensor data from NodeMCU via API with improved error handling"""
+# Global variable to store the latest data from polling
+latest_polled_data = None
+polling_thread = None
+polling_lock = threading.Lock()
+
+def get_nodemcu_data(force_refresh=False):
+    """
+    Get sensor data from NodeMCU via API with improved error handling
+    
+    Args:
+        force_refresh (bool): If True, forces a new request instead of using cached data
+    """
+    global latest_polled_data
+    
+    # If we have cached data and not forcing refresh, return it
+    if not force_refresh and latest_polled_data is not None:
+        # Check if the cached data is recent (less than 2 polling intervals old)
+        if 'timestamp' in latest_polled_data:
+            try:
+                data_time = datetime.strptime(latest_polled_data['timestamp'], "%Y-%m-%d %H:%M:%S")
+                now = datetime.now()
+                data_age_seconds = (now - data_time).total_seconds()
+                
+                # If data is recent enough, use it
+                if data_age_seconds < (config.Config.POLLING_INTERVAL * 2):
+                    return latest_polled_data
+            except:
+                # If there's an error parsing the timestamp, just continue to fetch fresh data
+                pass
+    
     try:
         # Check if base URL is actually available
         if not config.NODEMCU_CONFIG['base_url'] or config.NODEMCU_CONFIG['base_url'] == 'http://localhost/':
             print("NodeMCU URL not configured or set to localhost.")
             return None
         
-        # Add proper error handling for timeouts and connection errors
-        response = requests.get(
-            f"{config.NODEMCU_CONFIG['base_url']}/api/data", 
-            timeout=config.NODEMCU_CONFIG['timeout']
-        )
-        if response.status_code == 200:
-            data = response.json()
-            # Log data for debugging
-            print(f"Data received from NodeMCU: {json.dumps(data, indent=2)}")
-            
-            # Ensure data formatting matches what the NodeMCU sends
-            # Based on the NodeMCU code, we expect these fields
-            expected_fields = ["ldr", "rain", "status", "weather", "rotation", "connected", "device_id", "timestamp"]
-            
-            # Check if all expected fields are present
-            if not all(field in data for field in expected_fields):
-                print(f"Warning: Some expected fields missing from NodeMCU data. Received: {list(data.keys())}")
-            
-            return data
-        else:
-            print(f"Error getting data from NodeMCU: HTTP {response.status_code}")
-            return None
-    except requests.exceptions.Timeout:
-        print("Connection timed out while connecting to NodeMCU")
+        start_time = time.time()
+        
+        # Implement retry logic
+        max_retries = config.APP_CONFIG.get('max_retries', 3)
+        retry_delay = config.APP_CONFIG.get('retry_delay', 2)
+        
+        for retry in range(max_retries):
+            try:
+                # Add proper error handling for timeouts and connection errors
+                response = requests.get(
+                    f"{config.NODEMCU_CONFIG['base_url']}/api/data", 
+                    timeout=config.NODEMCU_CONFIG['timeout']
+                )
+                
+                response_time = time.time() - start_time
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    
+                    # Ensure data has a timestamp
+                    if 'timestamp' not in data:
+                        data['timestamp'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    
+                    # Log data for debugging
+                    print(f"Data received from NodeMCU: {json.dumps(data, indent=2)}")
+                    print(f"Response time: {response_time:.2f}s")
+                    
+                    # Log successful polling to the database
+                    config.log_polling_event(True, response_time)
+                    
+                    # Store the data in our global cache
+                    with polling_lock:
+                        latest_polled_data = data
+                    
+                    # Save to database for historical records
+                    try:
+                        save_sensor_data(data)
+                    except Exception as db_error:
+                        print(f"Error saving sensor data to database: {db_error}")
+                    
+                    return data
+                else:
+                    print(f"Error getting data from NodeMCU: HTTP {response.status_code}")
+                    if retry < max_retries - 1:  # Don't sleep on the last retry
+                        time.sleep(retry_delay)
+                    
+            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError, socket.gaierror):
+                if retry < max_retries - 1:  # Don't sleep on the last retry
+                    print(f"Connection error on try {retry+1}/{max_retries}, retrying in {retry_delay}s...")
+                    time.sleep(retry_delay)
+                else:
+                    print("All retries failed.")
+        
+        # If we've exhausted our retries, log the failure
+        error_msg = f"Failed to get data after {max_retries} retries"
+        config.log_polling_event(False, time.time() - start_time, error_msg)
         return None
-    except (requests.exceptions.ConnectionError, socket.gaierror):
-        print(f"Cannot connect to NodeMCU at {config.NODEMCU_CONFIG['base_url']}")
-        return None
-    except requests.exceptions.RequestException as e:
-        print(f"Connection error with NodeMCU: {e}")
-        return None
+                    
     except Exception as e:
-        print(f"Unexpected error communicating with NodeMCU: {e}")
+        response_time = time.time() - start_time
+        error_msg = f"Unexpected error communicating with NodeMCU: {e}"
+        print(error_msg)
+        config.log_polling_event(False, response_time, error_msg)
         return None
 
 def send_command_to_nodemcu(action):
@@ -70,9 +129,9 @@ def send_command_to_nodemcu(action):
         return {"success": False, "message": error_msg}
     
     try:
-        # First get current status
+        # First get current status - force refresh to ensure we have current data
         print("Fetching current NodeMCU status...")
-        current_data = get_nodemcu_data()
+        current_data = get_nodemcu_data(force_refresh=True)
         print(f"Current NodeMCU data: {current_data}")
         
         if current_data is None:
@@ -93,60 +152,62 @@ def send_command_to_nodemcu(action):
                 print("Clothesline is already closed, no need to send command")
                 return {"success": True, "message": "Clothesline is already closed"}
         
-        # Construct the URL
-        url = f"{config.NODEMCU_CONFIG['base_url']}/api/control"
-        print(f"Request URL: {url}")
-        print(f"Request params: {{'action': {action}}}")
+        # Implement retry logic
+        max_retries = config.APP_CONFIG.get('max_retries', 3)
+        retry_delay = config.APP_CONFIG.get('retry_delay', 2)
         
-        # Send the command
-        response = requests.post(
-            url, 
-            params={'action': action},
-            timeout=config.NODEMCU_CONFIG['timeout']
-        )
-        
-        # Log response details
-        print(f"Response status code: {response.status_code}")
-        print(f"Response headers: {response.headers}")
-        
-        try:
-            result = response.json()
-            print(f"Response JSON: {result}")
-        except:
-            print(f"Response text (not JSON): {response.text}")
-            result = {"success": False, "message": f"Invalid response: {response.text}"}
-        
-        if response.status_code == 200:
-            print(f"Command sent successfully!")
-
-            # Update the database with the command sent
-            # You may need to import additional functions or modify your database utility
-            # to handle this functionality
+        for retry in range(max_retries):
             try:
-                # Example of how you might log the command to your database
-                # log_command_to_database(action, result.get("success", False))
-                pass
-            except Exception as db_error:
-                print(f"Warning: Could not log command to database: {db_error}")
+                # Construct the URL
+                url = f"{config.NODEMCU_CONFIG['base_url']}/api/control"
+                print(f"Request URL: {url}")
+                print(f"Request params: {{'action': {action}}}")
                 
-            return result
-        else:
-            error_msg = f"Error sending command to NodeMCU: HTTP {response.status_code}"
-            print(f"ERROR: {error_msg}")
-            return {"success": False, "message": error_msg}
+                # Send the command
+                response = requests.post(
+                    url, 
+                    params={'action': action},
+                    timeout=config.NODEMCU_CONFIG['timeout']
+                )
+                
+                # Log response details
+                print(f"Response status code: {response.status_code}")
+                print(f"Response headers: {response.headers}")
+                
+                try:
+                    result = response.json()
+                    print(f"Response JSON: {result}")
+                except:
+                    print(f"Response text (not JSON): {response.text}")
+                    result = {"success": False, "message": f"Invalid response: {response.text}"}
+                
+                if response.status_code == 200:
+                    print(f"Command sent successfully!")
+                    
+                    # Force refresh data after command to get the new state
+                    time.sleep(1)  # Allow a moment for the state to change
+                    get_nodemcu_data(force_refresh=True)
+                    
+                    return result
+                else:
+                    print(f"Error on try {retry+1}/{max_retries}: HTTP {response.status_code}")
+                    if retry < max_retries - 1:  # Don't sleep on the last retry
+                        time.sleep(retry_delay)
+                        
+            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+                if retry < max_retries - 1:  # Don't sleep on the last retry
+                    print(f"Connection error on try {retry+1}/{max_retries}: {e}, retrying in {retry_delay}s...")
+                    time.sleep(retry_delay)
+                else:
+                    error_msg = f"All retries failed: {e}"
+                    print(f"ERROR: {error_msg}")
+                    return {"success": False, "message": error_msg}
+        
+        # If we get here, all retries failed
+        error_msg = f"Command failed after {max_retries} attempts"
+        print(f"ERROR: {error_msg}")
+        return {"success": False, "message": error_msg}
             
-    except requests.exceptions.Timeout:
-        error_msg = "Connection timed out while connecting to NodeMCU"
-        print(f"ERROR: {error_msg}")
-        return {"success": False, "message": error_msg}
-    except (requests.exceptions.ConnectionError, socket.gaierror):
-        error_msg = f"Cannot connect to NodeMCU at {config.NODEMCU_CONFIG['base_url']}"
-        print(f"ERROR: {error_msg}")
-        return {"success": False, "message": error_msg}
-    except requests.exceptions.RequestException as e:
-        error_msg = f"Connection error with NodeMCU: {e}"
-        print(f"ERROR: {error_msg}")
-        return {"success": False, "message": error_msg}
     except Exception as e:
         error_msg = f"Unexpected error: {e}"
         print(f"ERROR: {error_msg}")
@@ -162,36 +223,51 @@ def check_nodemcu_connection():
         # First check if the URL is properly configured
         if not config.NODEMCU_CONFIG['base_url'] or config.NODEMCU_CONFIG['base_url'] == 'http://localhost/':
             return {"status": "error", "message": "NodeMCU URL not configured or set to localhost"}, 500
-            
-        response = requests.get(
-            f"{config.NODEMCU_CONFIG['base_url']}/api/status", 
-            timeout=config.NODEMCU_CONFIG['timeout']
-        )
         
-        if response.status_code == 200:
-            # Try to parse the response to check if Arduino is connected
+        # Implement retry logic
+        max_retries = config.APP_CONFIG.get('max_retries', 3)
+        retry_delay = config.APP_CONFIG.get('retry_delay', 2)
+        
+        for retry in range(max_retries):
             try:
-                data = response.json()
-                arduino_connected = data.get("connected", False)
+                response = requests.get(
+                    f"{config.NODEMCU_CONFIG['base_url']}/api/status", 
+                    timeout=config.NODEMCU_CONFIG['timeout']
+                )
                 
-                if arduino_connected:
-                    return {"status": "connected", "message": "NodeMCU is connected and Arduino is responding"}, 200
+                if response.status_code == 200:
+                    # Try to parse the response to check if Arduino is connected
+                    try:
+                        data = response.json()
+                        arduino_connected = data.get("connected", False)
+                        
+                        if arduino_connected:
+                            return {"status": "connected", "message": "NodeMCU is connected and Arduino is responding"}, 200
+                        else:
+                            return {"status": "partial", "message": "NodeMCU is connected but Arduino is not responding"}, 200
+                    except:
+                        # If can't parse JSON, just check if there's HTML response (status page)
+                        if "<html" in response.text.lower():
+                            return {"status": "connected", "message": "NodeMCU status page is accessible"}, 200
+                        else:
+                            return {"status": "error", "message": "NodeMCU response format is invalid"}, 500
                 else:
-                    return {"status": "partial", "message": "NodeMCU is connected but Arduino is not responding"}, 200
-            except:
-                # If can't parse JSON, just check if there's HTML response (status page)
-                if "<html" in response.text.lower():
-                    return {"status": "connected", "message": "NodeMCU status page is accessible"}, 200
+                    if retry < max_retries - 1:  # Don't sleep on the last retry
+                        print(f"Connection error on try {retry+1}/{max_retries}: HTTP {response.status_code}, retrying in {retry_delay}s...")
+                        time.sleep(retry_delay)
+                    else:
+                        return {"status": "error", "message": f"NodeMCU returned HTTP {response.status_code}"}, 500
+                        
+            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+                if retry < max_retries - 1:  # Don't sleep on the last retry
+                    print(f"Connection error on try {retry+1}/{max_retries}: {e}, retrying in {retry_delay}s...")
+                    time.sleep(retry_delay)
                 else:
-                    return {"status": "error", "message": "NodeMCU response format is invalid"}, 500
-        else:
-            return {"status": "error", "message": f"NodeMCU returned HTTP {response.status_code}"}, 500
-    except requests.exceptions.Timeout:
-        return {"status": "error", "message": "Connection timed out while connecting to NodeMCU"}, 500
-    except (requests.exceptions.ConnectionError, socket.gaierror):
-        return {"status": "error", "message": f"Cannot connect to NodeMCU at {config.NODEMCU_CONFIG['base_url']}"}, 500
-    except requests.exceptions.RequestException as e:
-        return {"status": "error", "message": f"Cannot connect to NodeMCU: {str(e)}"}, 500
+                    return {"status": "error", "message": f"Cannot connect to NodeMCU: {str(e)}"}, 500
+        
+        # If we've exhausted our retries
+        return {"status": "error", "message": f"Failed to connect after {max_retries} retries"}, 500
+        
     except Exception as e:
         return {"status": "error", "message": f"Unexpected error: {str(e)}"}, 500
 
@@ -286,6 +362,55 @@ def check_auto_conditions():
     finally:
         print("----- AUTO MODE CHECK COMPLETE -----\n")
 
+def start_polling():
+    """Start a background thread for HTTP polling"""
+    global polling_thread
+    
+    if polling_thread is not None and polling_thread.is_alive():
+        print("Polling thread already running")
+        return
+    
+    # Create and start a new polling thread
+    polling_thread = threading.Thread(target=polling_worker, daemon=True)
+    polling_thread.start()
+    print(f"HTTP polling thread started (interval: {config.Config.POLLING_INTERVAL}s)")
+
+def stop_polling():
+    """Stop the background polling thread"""
+    config.threads_running = False
+    
+    if polling_thread is not None:
+        print("Waiting for polling thread to stop...")
+        polling_thread.join(timeout=5)
+        print("Polling thread stopped")
+
+def polling_worker():
+    """Worker function for the polling thread"""
+    print("Polling worker started")
+    
+    while config.threads_running:
+        try:
+            # Record the current time
+            start_time = time.time()
+            
+            # Get data from NodeMCU
+            get_nodemcu_data(force_refresh=True)
+            
+            # Check auto conditions if enabled
+            if config.AUTO_SETTINGS.get('enabled', False):
+                check_auto_conditions()
+            
+            # Calculate how long to sleep
+            elapsed = time.time() - start_time
+            sleep_time = max(0.1, config.Config.POLLING_INTERVAL - elapsed)
+            
+            # Sleep for the remaining time
+            time.sleep(sleep_time)
+            
+        except Exception as e:
+            print(f"Error in polling worker: {e}")
+            time.sleep(config.Config.POLLING_INTERVAL)  # Sleep on error to avoid fast loops
+
 def sync_data_with_server():
     """
     Sync local data with cloud server (render.com)
@@ -311,3 +436,8 @@ def sync_data_with_server():
     except Exception as e:
         print(f"Error syncing data with server: {e}")
         return {"success": False, "message": f"Error: {str(e)}"}
+
+# Start polling automatically when this module is imported
+if config.Config.POLLING_ENABLED:
+    print("Automatic HTTP polling is enabled. Starting polling thread...")
+    start_polling()

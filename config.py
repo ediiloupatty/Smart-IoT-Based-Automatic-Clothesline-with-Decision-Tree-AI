@@ -13,14 +13,13 @@ from dotenv import load_dotenv
 # Load environment variables from .env file if exists
 load_dotenv()
 
-# Flask and CORS configuration
+# Flask configuration
 class Config:
     CORS_ALLOWED_ORIGINS = "*"
     SECRET_KEY = os.environ.get('SECRET_KEY', 'dev-secret-key')
-    # SocketIO configs - adjusted for better websocket compatibility
-    SOCKETIO_PING_TIMEOUT = 30  # Increased from 25
-    SOCKETIO_PING_INTERVAL = 10  # Increased from 5
-    SOCKETIO_ASYNC_MODE = "threading"  # Keep using gevent
+    # HTTP polling configuration
+    POLLING_ENABLED = True
+    POLLING_INTERVAL = int(os.environ.get('POLLING_INTERVAL', '5'))  # seconds
 
 # Check if we're running on a production environment (Render)
 IS_PRODUCTION = os.environ.get('RENDER', False)
@@ -35,11 +34,10 @@ else:
 # Make sure the data directory exists
 os.makedirs(os.path.dirname(DATABASE), exist_ok=True)
 
-# NodeMCU Configuration - Fixed to not use render URL as default
-# This should be the actual IP or domain of your NodeMCU, not the web app itself
+# NodeMCU Configuration
 NODEMCU_CONFIG = {
-    'base_url': os.environ.get('NODEMCU_BASE_URL', 'http://192.168.8.137/'),  # Default should be a local IP, not the render URL
-    'timeout': float(os.environ.get('NODEMCU_TIMEOUT', '10'))  # Increased timeout for network reliability
+    'base_url': os.environ.get('NODEMCU_BASE_URL', 'http://192.168.8.137/'),
+    'timeout': float(os.environ.get('NODEMCU_TIMEOUT', '10'))
 }
 
 # Auto mode settings
@@ -56,16 +54,19 @@ MODEL_INFO = {
     'accuracy': None
 }
 
-# Additional configuration - adjusted for better behavior on hosted environments
+# Additional configuration
 APP_CONFIG = {
-    'polling_interval': int(os.environ.get('POLLING_INTERVAL', '10')),  # Increased from 3 to reduce server load
-    'training_interval': int(os.environ.get('TRAINING_INTERVAL', '3600')),  # Increased to 1 hour between auto-training
-    'command_cooldown': int(os.environ.get('COMMAND_COOLDOWN', '60'))  # Seconds between auto commands
+    'polling_interval': int(os.environ.get('POLLING_INTERVAL', '10')),
+    'training_interval': int(os.environ.get('TRAINING_INTERVAL', '3600')),
+    'command_cooldown': int(os.environ.get('COMMAND_COOLDOWN', '60')),  # Seconds between auto commands
+    'max_retries': int(os.environ.get('MAX_RETRIES', '3')),  # Max retries for HTTP requests
+    'retry_delay': int(os.environ.get('RETRY_DELAY', '2'))   # Seconds between retries
 }
 
 # Thread control variables
 threads_running = True
 last_auto_command_time = 0
+last_poll_time = 0
 
 # Database functions
 def init_db():
@@ -91,6 +92,18 @@ def init_db():
                 value TEXT
             )
         ''')
+        
+        # Create polling_log table to track HTTP polling
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS polling_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp DATETIME,
+                success BOOLEAN,
+                response_time FLOAT,
+                message TEXT
+            )
+        ''')
+        
         conn.commit()
         conn.close()
         print("Database initialized successfully")
@@ -150,15 +163,33 @@ def load_all_settings():
         accuracy = load_setting('model_accuracy')
         MODEL_INFO['accuracy'] = float(accuracy) if accuracy else None
         
+        # Load polling settings
+        Config.POLLING_ENABLED = load_setting('polling_enabled', 'True') == 'True'
+        Config.POLLING_INTERVAL = int(load_setting('polling_interval', Config.POLLING_INTERVAL))
+        
         print("All settings loaded successfully")
     except Exception as e:
         print(f"Error loading settings: {str(e)}")
+
+def log_polling_event(success, response_time, message=""):
+    """Log HTTP polling events to the database"""
+    try:
+        conn = sqlite3.connect(DATABASE)
+        conn.execute('''
+            INSERT INTO polling_log (timestamp, success, response_time, message) 
+            VALUES (?, ?, ?, ?)
+        ''', (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), success, response_time, message))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Error logging polling event: {str(e)}")
 
 # Print system info
 print(f"System: {platform.system()} {platform.release()}")
 print(f"Python: {platform.python_version()}")
 print(f"Database path: {os.path.abspath(DATABASE)}")
 print(f"Production mode: {IS_PRODUCTION}")
+print(f"Polling mode: HTTP polling (interval: {Config.POLLING_INTERVAL}s)")
 
 # Initialize the database and load settings when this module is imported
 init_db()

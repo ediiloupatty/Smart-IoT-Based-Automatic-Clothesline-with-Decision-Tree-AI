@@ -81,7 +81,7 @@
     <div class="container">
         <!-- Connection Status Indicator -->
         <div id="connection-status" class="connection-status connecting">
-            <i class="fas fa-sync fa-spin"></i> Connecting to system...
+            <i class="fas fa-sync fa-spin"></i> Menghubungkan ke sistem...
         </div>
         
         <div class="dashboard">
@@ -182,12 +182,12 @@
             options: chartConfig
         });
         
-        // Track reconnection attempts
+        // HTTP Polling configuration
+        let dataFetchTimer = null;
         let reconnectAttempts = 0;
         const MAX_RECONNECT_ATTEMPTS = 5;
         let reconnectInterval = 3000; // Start with 3 seconds
-        let dataFetchTimer = null;
-        let wsConnection = null;
+        const POLLING_INTERVAL = 2000; // Poll every 2 seconds
         
         // Connection status indicator functions
         function updateConnectionStatus(status, message) {
@@ -196,88 +196,20 @@
             
             switch(status) {
                 case 'connected':
-                    statusElement.innerHTML = '<i class="fas fa-check-circle"></i> ' + (message || 'Connected to system');
+                    statusElement.innerHTML = '<i class="fas fa-check-circle"></i> ' + (message || 'Terhubung ke sistem');
                     break;
                 case 'disconnected':
-                    statusElement.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + (message || 'Disconnected from system');
+                    statusElement.innerHTML = '<i class="fas fa-exclamation-circle"></i> ' + (message || 'Terputus dari sistem');
                     break;
                 case 'connecting':
-                    statusElement.innerHTML = '<i class="fas fa-sync fa-spin"></i> ' + (message || 'Connecting to system...');
+                    statusElement.innerHTML = '<i class="fas fa-sync fa-spin"></i> ' + (message || 'Menghubungkan ke sistem...');
                     break;
             }
         }
         
-        // Try WebSocket first, fallback to polling if WebSocket fails
+        // Set up HTTP polling for data updates
         function setupDataConnection() {
-            // Try WebSocket first
-            try {
-                updateConnectionStatus('connecting', 'Attempting WebSocket connection...');
-                
-                // Determine correct WebSocket URL
-                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                const host = window.location.hostname;
-                const port = window.location.port ? window.location.port : (protocol === 'wss:' ? '443' : '80');
-                
-                // Try to connect to NodeMCU WebSocket port
-                const wsUrl = `${protocol}//${host}:81`;
-                console.log(`Connecting to WebSocket: ${wsUrl}`);
-                
-                wsConnection = new WebSocket(wsUrl);
-                
-                wsConnection.onopen = function() {
-                    console.log('WebSocket connection established');
-                    updateConnectionStatus('connected', 'Connected via WebSocket');
-                    reconnectAttempts = 0; // Reset reconnect counter on success
-                    
-                    // Cancel polling if it was running
-                    if (dataFetchTimer) {
-                        clearInterval(dataFetchTimer);
-                    }
-                };
-                
-                wsConnection.onmessage = function(event) {
-                    console.log('Received WebSocket data:', event.data);
-                    
-                    try {
-                        const data = JSON.parse(event.data);
-                        updateDashboardData(data);
-                        updateWeatherPrediction(); // Still fetch weather prediction separately
-                    } catch (error) {
-                        console.error('Error parsing WebSocket message:', error);
-                    }
-                };
-                
-                wsConnection.onclose = function() {
-                    console.log('WebSocket connection closed');
-                    updateConnectionStatus('disconnected', 'WebSocket disconnected');
-                    wsConnection = null;
-                    
-                    // If we haven't exceeded max reconnects, try again
-                    if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-                        setTimeout(tryFallbackToPolling, reconnectInterval);
-                        reconnectAttempts++;
-                        reconnectInterval *= 1.5; // Exponential backoff
-                    } else {
-                        updateConnectionStatus('disconnected', 'Connection failed. Please refresh the page.');
-                    }
-                };
-                
-                wsConnection.onerror = function(error) {
-                    console.error('WebSocket error:', error);
-                    if (wsConnection) {
-                        wsConnection.close();
-                    }
-                };
-                
-            } catch (error) {
-                console.error('Error setting up WebSocket:', error);
-                tryFallbackToPolling();
-            }
-        }
-        
-        function tryFallbackToPolling() {
-            updateConnectionStatus('connecting', 'Trying HTTP polling fallback...');
-            console.log('Falling back to HTTP polling');
+            updateConnectionStatus('connecting', 'Memulai koneksi HTTP polling...');
             
             // Clear any existing timer
             if (dataFetchTimer) {
@@ -293,25 +225,28 @@
                     return response.json();
                 })
                 .then(data => {
-                    console.log('Initial polling data fetch successful:', data);
-                    updateConnectionStatus('connected', 'Connected via HTTP polling');
+                    console.log('Initial HTTP polling fetch successful:', data);
+                    updateConnectionStatus('connected', 'Terhubung melalui HTTP polling');
                     updateDashboardData(data);
+                    reconnectAttempts = 0; // Reset reconnect counter on success
                     
                     // If successful, start regular polling
-                    dataFetchTimer = setInterval(updateDataViaPolling, 3000);
+                    dataFetchTimer = setInterval(updateDataViaPolling, POLLING_INTERVAL);
                     
                     // Also fetch weather prediction
                     updateWeatherPrediction();
                 })
                 .catch(error => {
-                    console.error('Polling fetch failed:', error);
-                    updateConnectionStatus('disconnected', 'Cannot connect to server');
+                    console.error('Initial polling fetch failed:', error);
+                    updateConnectionStatus('disconnected', 'Tidak dapat terhubung ke server');
                     
                     // Try again if within retry limit
                     if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-                        setTimeout(tryFallbackToPolling, reconnectInterval);
+                        setTimeout(setupDataConnection, reconnectInterval);
                         reconnectAttempts++;
                         reconnectInterval *= 1.5; // Exponential backoff
+                    } else {
+                        updateConnectionStatus('disconnected', 'Koneksi gagal. Silakan muat ulang halaman.');
                     }
                 });
         }
@@ -327,10 +262,11 @@
                 })
                 .then(data => {
                     updateDashboardData(data);
+                    updateConnectionStatus('connected', 'Terhubung - Data terakhir: ' + new Date().toLocaleTimeString());
                 })
                 .catch(error => {
                     console.error('Error polling data:', error);
-                    updateConnectionStatus('disconnected', 'Connection lost!');
+                    updateConnectionStatus('disconnected', 'Koneksi terputus!');
                     
                     // Cancel polling timer
                     if (dataFetchTimer) {
@@ -342,10 +278,13 @@
                     if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
                         setTimeout(setupDataConnection, reconnectInterval);
                         reconnectAttempts++;
+                        reconnectInterval *= 1.5; // Exponential backoff
+                    } else {
+                        updateConnectionStatus('disconnected', 'Koneksi gagal. Silakan muat ulang halaman.');
                     }
                 });
         }
-    
+
         // Update Dashboard with data
         function updateDashboardData(data) {
             console.log('Updating dashboard with data:', data);
@@ -360,7 +299,7 @@
             
             // Update rain value with text interpretation
             const rainValue = data.rain !== undefined ? data.rain : '-';
-            const rainText = rainValue !== '-' ? (rainValue < 500 ? "DETECTED" : "NONE") : '-';
+            const rainText = rainValue !== '-' ? (rainValue < 500 ? "TERDETEKSI" : "TIDAK ADA") : '-';
             updateElementWithAnimation('rain-value', rainText);
             
             // Update status
@@ -382,7 +321,6 @@
             }
         }
         
-
         function updateElementWithAnimation(elementId, value) {
             const element = document.getElementById(elementId);
             if (element) {
@@ -395,7 +333,6 @@
             }
         }
         
-
         function updateChart(chart, value, label) {
             chart.data.labels.push(label);
             chart.data.datasets[0].data.push(value);
@@ -447,7 +384,6 @@
                 });
         }
 
-
         function forceTrainModel() {
             console.log("Memulai pelatihan paksa model...");
             document.getElementById('prediction-spinner').style.display = 'block';
@@ -486,18 +422,6 @@
                 });
         }
 
-        // Tambahkan pemanggilan checkModelStatus saat halaman dimuat
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log("Page loaded, initializing data connection...");
-            setupDataConnection();
-            
-            // Periksa status model dan latih jika perlu
-            checkModelStatus();
-            
-            // Periodically update weather prediction regardless of other connection type
-            setInterval(updateWeatherPrediction, 30000);
-        });
-    
         // Weather prediction update function with improved error handling
         function updateWeatherPrediction() {
             console.log("Updating weather prediction...");
@@ -521,7 +445,7 @@
                     
                     if (data.error) {
                         console.warn("Weather prediction error:", data.error);
-                        updateElementWithAnimation('rain-prediction', "MODEL NOT READY");
+                        updateElementWithAnimation('rain-prediction', "MODEL TIDAK SIAP");
                         updateElementWithAnimation('rain-confidence', "N/A");
                         predictionElement.style.color = '#f39c12'; // Orange for warning
                         confidenceElement.style.color = '#f39c12';
@@ -530,7 +454,7 @@
                     
                     if (data.will_rain !== undefined && data.probability !== undefined) {
                         // Update prediction display
-                        updateElementWithAnimation('rain-prediction', data.will_rain ? 'RAINY' : 'SUNNY');
+                        updateElementWithAnimation('rain-prediction', data.will_rain ? 'HUJAN' : 'CERAH');
                         const confidencePercent = Math.round(data.probability * 100);
                         updateElementWithAnimation('rain-confidence', `${confidencePercent}%`);
                         
@@ -548,17 +472,22 @@
                 .catch(error => {
                     console.error("Error fetching weather prediction:", error);
                     document.getElementById('prediction-spinner').style.display = 'none';
-                    updateElementWithAnimation('rain-prediction', "CONNECTION ERROR");
+                    updateElementWithAnimation('rain-prediction', "KONEKSI ERROR");
                     updateElementWithAnimation('rain-confidence', "N/A");
                 });
         }
         
         // Initialize everything when the page loads
         document.addEventListener('DOMContentLoaded', function() {
-            console.log("Page loaded, initializing data connection...");
+            console.log("Halaman dimuat, memulai koneksi data...");
+            
+            // Set up HTTP polling connection
             setupDataConnection();
             
-            // Periodically update weather prediction regardless of other connection type
+            // Periksa status model dan latih jika perlu
+            checkModelStatus();
+            
+            // Periodically update weather prediction
             setInterval(updateWeatherPrediction, 30000);
         });
     </script>
