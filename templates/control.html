@@ -6,340 +6,7 @@
     <title>Manual Control | Smart Clothesline System</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-    <style>
-        :root {
-            --primary-color: #0077cc;
-            --secondary-color: #005fa3;
-            --bg-color: #f5f8fa;
-            --card-bg: #ffffff;
-            --text-color: #333333;
-            --border-color: #e1e8ed;
-            --success-color: #28a745;
-            --warning-color: #ffc107;
-            --danger-color: #dc3545;
-            --header-bg: #0077cc;
-            --header-text: #ffffff;
-        }
-
-        [data-theme="dark"] {
-            --primary-color: #1a91ff;
-            --secondary-color: #0084ff;
-            --bg-color: #15202b;
-            --card-bg: #192734;
-            --text-color: #ffffff;
-            --border-color: #38444d;
-            --success-color: #28a745;
-            --warning-color: #ffc107;
-            --danger-color: #dc3545;
-            --header-bg: #1a91ff;
-            --header-text: #ffffff;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            transition: all 0.3s ease;
-        }
-
-        #main-header {
-            background-color: var(--header-bg);
-            color: var(--header-text);
-            padding: 1rem 0;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
-
-        .header-container {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 1rem;
-        }
-
-        .logo {
-            display: flex;
-            align-items: center;
-            font-size: 1.5rem;
-            font-weight: bold;
-        }
-
-        .logo i {
-            margin-right: 0.5rem;
-            font-size: 1.8rem;
-        }
-
-        .nav-links a {
-            color: var(--header-text);
-            text-decoration: none;
-            margin-left: 1.5rem;
-            font-weight: 500;
-            opacity: 0.8;
-            transition: opacity 0.3s;
-        }
-
-        .nav-links a.active, .nav-links a:hover {
-            opacity: 1;
-            border-bottom: 2px solid var(--header-text);
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 2rem auto;
-            padding: 0 1rem;
-        }
-
-        .main-content {
-            min-height: calc(100vh - 180px);
-        }
-
-        .dashboard {
-            display: grid;
-            grid-template-columns: 1fr;
-            grid-gap: 2rem;
-        }
-
-        @media (min-width: 768px) {
-            .dashboard {
-                grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-            }
-        }
-
-        .card {
-            background-color: var(--card-bg);
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            padding: 1.5rem;
-            transition: transform 0.3s, box-shadow 0.3s;
-        }
-
-        .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
-        }
-
-        .card h2 {
-            margin-bottom: 1.5rem;
-            color: var(--primary-color);
-            font-size: 1.5rem;
-            border-bottom: 2px solid var(--border-color);
-            padding-bottom: 0.5rem;
-        }
-
-        .controls {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            grid-gap: 1rem;
-            margin-bottom: 1.5rem;
-        }
-
-        .controls button {
-            padding: 1rem;
-            border: none;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            background-color: var(--primary-color);
-            color: white;
-        }
-
-        .controls button i {
-            font-size: 2rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .controls button:hover {
-            background-color: var(--secondary-color);
-            transform: scale(1.05);
-        }
-
-        .controls button.stop {
-            grid-column: 1 / -1;
-            background-color: var(--danger-color);
-        }
-
-        .controls button.stop:hover {
-            background-color: #c82333;
-        }
-
-        .data-container {
-            display: grid;
-            grid-gap: 1rem;
-        }
-
-        .data-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 0.8rem;
-            border-bottom: 1px solid var(--border-color);
-            align-items: center;
-        }
-
-        .data-item:last-child {
-            border-bottom: none;
-        }
-
-        .digital-value {
-            font-family: 'Courier New', Courier, monospace;
-            font-weight: bold;
-            padding: 0.3rem 0.8rem;
-            border-radius: 4px;
-            background-color: rgba(0, 119, 204, 0.1);
-            min-width: 120px;
-            text-align: center;
-        }
-
-        #status {
-            padding: 1rem;
-            text-align: center;
-            margin-top: 1rem;
-            border-radius: 8px;
-            font-weight: bold;
-            background-color: rgba(0, 119, 204, 0.1);
-        }
-
-        footer {
-            text-align: center;
-            padding: 1.5rem 0;
-            margin-top: 2rem;
-            background-color: var(--card-bg);
-            border-top: 1px solid var(--border-color);
-        }
-
-        /* Animations */
-        @keyframes pulse {
-            0% {
-                transform: scale(1);
-            }
-            50% {
-                transform: scale(1.05);
-            }
-            100% {
-                transform: scale(1);
-            }
-        }
-
-        .value-update {
-            animation: pulse 0.5s ease;
-            background-color: rgba(255, 193, 7, 0.3);
-        }
-
-        /* Additional styles for sensor dashboard */
-        .sensor-gauges {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            grid-gap: 1rem;
-        }
-
-        .gauge-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .gauge {
-            width: 100%;
-            height: 120px;
-            position: relative;
-            overflow: hidden;
-            border-radius: 50% 50% 0 0;
-            background-color: rgba(0, 0, 0, 0.05);
-        }
-
-        .gauge-value {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background-color: var(--primary-color);
-            transition: height 0.5s ease;
-        }
-
-        .gauge-label {
-            margin-top: 0.5rem;
-            font-weight: bold;
-            display: flex;
-            justify-content: space-between;
-            width: 100%;
-        }
-
-        /* Status badges */
-        .status-badge {
-            display: inline-block;
-            padding: 0.3rem 0.8rem;
-            border-radius: 20px;
-            font-weight: bold;
-            text-transform: uppercase;
-        }
-
-        .status-open {
-            background-color: var(--success-color);
-            color: white;
-        }
-
-        .status-closed {
-            background-color: var(--warning-color);
-            color: black;
-        }
-
-        .status-moving {
-            background-color: var(--primary-color);
-            color: white;
-            animation: pulse 1.5s infinite;
-        }
-
-        .status-error {
-            background-color: var(--danger-color);
-            color: white;
-        }
-
-        /* Connection status indicator */
-        .connection-status {
-            display: flex;
-            align-items: center;
-            margin-bottom: 1rem;
-            padding: 0.5rem;
-            border-radius: 6px;
-            background-color: rgba(0, 0, 0, 0.05);
-        }
-
-        .status-dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            margin-right: 0.5rem;
-        }
-
-        .status-connected {
-            background-color: var(--success-color);
-        }
-
-        .status-disconnected {
-            background-color: var(--danger-color);
-        }
-
-        .toggle-theme {
-            background: none;
-            border: none;
-            color: var(--header-text);
-            cursor: pointer;
-            font-size: 1.2rem;
-            margin-left: 1rem;
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <header id="main-header">
@@ -349,13 +16,10 @@
                 <span>Smart Clothesline System</span>
             </div>
             <div class="nav-links">
-                <a href="/">Home</a>
+                <a href="/" class="active">Home</a>
                 <a href="/realtime-monitoring">Real-time Monitoring</a>
-                <a href="/control" class="active">Manual Control</a>
+                <a href="/control">Manual Control</a>
                 <a href="/settings">System Settings</a>
-                <button id="theme-toggle" class="toggle-theme">
-                    <i class="fas fa-moon"></i>
-                </button>
             </div>
         </div>
     </header>
@@ -363,71 +27,30 @@
     <div class="container main-content">
         <div class="dashboard">
             <div class="card">
-                <div class="connection-status">
-                    <div id="connection-dot" class="status-dot status-disconnected"></div>
-                    <span id="connection-text">Checking connection...</span>
-                </div>
-                
-                <h2><i class="fas fa-gamepad"></i> Manual Control</h2>
+                <h2>Manual Control</h2>
                 <div class="controls">
-                    <button id="open-btn" onclick="sendCommand('open')"><i class="fas fa-umbrella-beach"></i> Buka Jemuran</button>
-                    <button id="close-btn" onclick="sendCommand('close')"><i class="fas fa-home"></i> Tutup Jemuran</button>
-                    <button id="stop-btn" onclick="sendCommand('stop')" class="stop"><i class="fas fa-hand"></i> STOP</button>
+                    <button onclick="sendCommand('open')"><i class="fas fa-umbrella-beach"></i> Buka Jemuran</button>
+                    <button onclick="sendCommand('close')"><i class="fas fa-home"></i> Tutup Jemuran</button>
+                    <button onclick="sendCommand('stop')" class="stop"><i class="fas fa-hand"></i> STOP</button>
                 </div>
                 <div id="status">Status: Siap</div>
             </div>
             
             <div class="card">
-                <h2><i class="fas fa-info-circle"></i> System Status</h2>
+                <h2>System Status</h2>
                 <div class="data-container">
                     <div class="data-item">
                         <span>Current Position:</span>
-                        <span class="digital-value" id="position">Loading...</span>
+                        <span class="digital-value" id="position">Extended</span>
                     </div>
                     <div class="data-item">
                         <span>Motor Status:</span>
-                        <span class="digital-value" id="motor">Loading...</span>
+                        <span class="digital-value" id="motor">Idle</span>
                     </div>
                     <div class="data-item">
                         <span>Last Command:</span>
                         <span class="digital-value" id="lastCmd">-</span>
                     </div>
-                    <div class="data-item">
-                        <span>IP Address:</span>
-                        <span class="digital-value" id="ip-address">Loading...</span>
-                    </div>
-                    <div class="data-item">
-                        <span>Device ID:</span>
-                        <span class="digital-value" id="device-id">Loading...</span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <h2><i class="fas fa-chart-line"></i> Sensor Readings</h2>
-                <div class="sensor-gauges">
-                    <div class="gauge-container">
-                        <div class="gauge">
-                            <div class="gauge-value" id="ldr-gauge" style="height: 0%"></div>
-                        </div>
-                        <div class="gauge-label">
-                            <span>Light</span>
-                            <span id="ldr-value">0</span>
-                        </div>
-                    </div>
-                    <div class="gauge-container">
-                        <div class="gauge">
-                            <div class="gauge-value" id="rain-gauge" style="height: 0%"></div>
-                        </div>
-                        <div class="gauge-label">
-                            <span>Rain</span>
-                            <span id="rain-value">0</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="data-item" style="margin-top: 1rem;">
-                    <span>Weather:</span>
-                    <span class="digital-value" id="weather">-</span>
                 </div>
             </div>
         </div>
@@ -439,250 +62,6 @@
     </footer>
 
     <script>
-        // Theme Toggle Functionality
-        const themeToggle = document.getElementById('theme-toggle');
-        const themeIcon = themeToggle.querySelector('i');
-        
-        function applyTheme() {
-            // Check theme preference from localStorage
-            const currentTheme = localStorage.getItem('theme');
-            const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
-            
-            // Apply theme based on priority: localStorage, then system preference
-            if (currentTheme === 'dark') {
-                document.documentElement.setAttribute('data-theme', 'dark');
-                themeIcon.className = 'fas fa-sun';
-            } else if (currentTheme === 'light') {
-                document.documentElement.setAttribute('data-theme', 'light');
-                themeIcon.className = 'fas fa-moon';
-            } else if (prefersDarkScheme.matches) {
-                document.documentElement.setAttribute('data-theme', 'dark');
-                themeIcon.className = 'fas fa-sun';
-            }
-        }
-        
-        themeToggle.addEventListener('click', () => {
-            const currentTheme = document.documentElement.getAttribute('data-theme');
-            
-            if (currentTheme === 'dark') {
-                document.documentElement.setAttribute('data-theme', 'light');
-                localStorage.setItem('theme', 'light');
-                themeIcon.className = 'fas fa-moon';
-            } else {
-                document.documentElement.setAttribute('data-theme', 'dark');
-                localStorage.setItem('theme', 'dark');
-                themeIcon.className = 'fas fa-sun';
-            }
-        });
-        
-        // Run on page load
-        applyTheme();
-
-        // Global variables
-        let isConnected = false;
-        let pollingInterval;
-        let retryCount = 0;
-        const MAX_RETRIES = 5;
-        const RETRY_DELAY = 5000; // 5 seconds
-        const POLLING_INTERVAL = 3000; // 3 seconds
-        
-        // Format status labels
-        const statusLabels = {
-            'TERTUTUP': 'Retracted',
-            'TERBUKA': 'Extended',
-            'BERGERAK_BUKA': 'Opening...',
-            'BERGERAK_TUTUP': 'Closing...',
-            'ERROR': 'Error'
-        };
-        
-        const motorLabels = {
-            0: 'Idle',
-            1: 'Active'
-        };
-        
-        // Initialize connection
-        document.addEventListener('DOMContentLoaded', () => {
-            checkConnection();
-            document.getElementById('status').innerText = 'Status: Initializing...';
-        });
-        
-        function checkConnection() {
-            fetch('/check-nodemcu')
-                .then(response => {
-                    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-                    return response.json();
-                })
-                .then(data => {
-                    if (data.status === 'connected' || data.status === 'partial') {
-                        setConnectionStatus(true, data.message);
-                        startDataPolling();
-                    } else {
-                        setConnectionStatus(false, data.message);
-                        scheduleRetry();
-                    }
-                })
-                .catch(error => {
-                    console.error('Connection check failed:', error);
-                    setConnectionStatus(false, 'Connection error');
-                    scheduleRetry();
-                });
-        }
-        
-        function setConnectionStatus(connected, message) {
-            const statusDot = document.getElementById('connection-dot');
-            const statusText = document.getElementById('connection-text');
-            
-            isConnected = connected;
-            
-            if (connected) {
-                statusDot.className = 'status-dot status-connected';
-                statusText.innerText = message || 'Connected';
-                retryCount = 0; // Reset retry counter on successful connection
-                
-                // Enable control buttons
-                document.getElementById('open-btn').disabled = false;
-                document.getElementById('close-btn').disabled = false;
-                document.getElementById('stop-btn').disabled = false;
-            } else {
-                statusDot.className = 'status-dot status-disconnected';
-                statusText.innerText = message || 'Disconnected';
-                
-                // Disable control buttons
-                document.getElementById('open-btn').disabled = true;
-                document.getElementById('close-btn').disabled = true;
-                document.getElementById('stop-btn').disabled = true;
-            }
-        }
-        
-        function scheduleRetry() {
-            retryCount++;
-            
-            if (retryCount <= MAX_RETRIES) {
-                document.getElementById('connection-text').innerText = `Connection failed. Retrying (${retryCount}/${MAX_RETRIES})...`;
-                setTimeout(checkConnection, RETRY_DELAY);
-            } else {
-                document.getElementById('connection-text').innerText = 'Connection failed. Please check your NodeMCU.';
-            }
-        }
-        
-        function startDataPolling() {
-            // Clear any existing interval
-            if (pollingInterval) {
-                clearInterval(pollingInterval);
-            }
-            
-            // Get data immediately
-            fetchData();
-            
-            // Set up regular polling
-            pollingInterval = setInterval(fetchData, POLLING_INTERVAL);
-        }
-        
-        function fetchData() {
-            fetch('/get_data')
-                .then(response => {
-                    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-                    return response.json();
-                })
-                .then(data => {
-                    console.log('Data received:', data);
-                    updateUI(data);
-                })
-                .catch(error => {
-                    console.error('Error fetching data:', error);
-                    // We don't need to set connection status here as it might be a temporary glitch
-                });
-        }
-        
-        function updateUI(data) {
-            if (!data || Object.keys(data).length === 0) {
-                console.warn('Empty data received');
-                return;
-            }
-            
-            // Update sensor gauges
-            updateGauge('ldr', data.ldr || 0);
-            updateGauge('rain', data.rain || 0);
-            
-            // Update system status
-            document.getElementById('position').innerText = statusLabels[data.status] || data.status || 'Unknown';
-            document.getElementById('motor').innerText = (data.rotation > 0) ? 'Active' : 'Idle';
-            document.getElementById('weather').innerText = data.weather || 'Unknown';
-            
-            // Update device info if available
-            if (data.device_id) {
-                document.getElementById('device-id').innerText = data.device_id;
-            }
-            
-            if (data.ip_address) {
-                document.getElementById('ip-address').innerText = data.ip_address;
-            }
-            
-            // Adjust UI based on status
-            updateStatusUI(data.status);
-        }
-        
-        function updateGauge(type, value) {
-            // Get max value for normalization
-            const max = type === 'ldr' ? 1023 : 1023;
-            const percentage = Math.min(100, Math.max(0, (value / max) * 100));
-            
-            // Update gauge height and value
-            document.getElementById(`${type}-gauge`).style.height = `${percentage}%`;
-            document.getElementById(`${type}-value`).innerText = value;
-            
-            // Set color based on value
-            let color = 'var(--primary-color)';
-            
-            if (type === 'ldr') {
-                // Blue for light (darker as gets brighter)
-                color = percentage > 75 ? '#FFC107' : // Bright yellow
-                       percentage > 50 ? '#4CAF50' : // Green
-                       percentage > 25 ? '#2196F3' : // Blue
-                       '#3F51B5'; // Dark blue
-            } else if (type === 'rain') {
-                // Blue gets darker as rain increases
-                color = percentage > 75 ? '#F44336' : // Red (heavy rain)
-                       percentage > 50 ? '#FF9800' : // Orange
-                       percentage > 25 ? '#2196F3' : // Blue
-                       '#81D4FA'; // Light blue
-            }
-            
-            document.getElementById(`${type}-gauge`).style.backgroundColor = color;
-        }
-        
-        function updateStatusUI(status) {
-            let statusClass;
-            
-            switch(status) {
-                case 'TERBUKA':
-                    statusClass = 'status-open';
-                    break;
-                case 'TERTUTUP':
-                    statusClass = 'status-closed';
-                    break;
-                case 'BERGERAK_BUKA':
-                case 'BERGERAK_TUTUP':
-                    statusClass = 'status-moving';
-                    break;
-                case 'ERROR':
-                    statusClass = 'status-error';
-                    break;
-                default:
-                    statusClass = '';
-            }
-            
-            const positionElement = document.getElementById('position');
-            
-            // Remove all status classes
-            positionElement.classList.remove('status-open', 'status-closed', 'status-moving', 'status-error');
-            
-            // Add the appropriate class
-            if (statusClass) {
-                positionElement.classList.add(statusClass);
-            }
-        }
-        
         function sendCommand(command) {
             // Update UI immediately for better UX
             const commandLabels = {
@@ -693,16 +72,7 @@
             
             document.getElementById('status').innerText = 'Status: ' + commandLabels[command];
             document.getElementById('lastCmd').innerText = command;
-            
-            if (command !== 'stop') {
-                document.getElementById('motor').innerText = 'Active';
-                
-                // Update position status with animation
-                document.getElementById('position').innerText = command === 'open' ? 'Opening...' : 'Closing...';
-                document.getElementById('position').classList.add('status-moving');
-            } else {
-                document.getElementById('motor').innerText = 'Idle';
-            }
+            document.getElementById('motor').innerText = command === 'stop' ? 'Idle' : 'Active';
             
             // Add animation for visual feedback
             document.getElementById('lastCmd').classList.add('value-update');
@@ -717,30 +87,45 @@
                 body: JSON.stringify({ command: command })
             })
             .then(response => {
-                if (!response.ok) throw new Error('Failed to send command');
+                if (!response.ok) throw new Error('Gagal mengirim');
                 return response.json();
             })
             .then(data => {
                 console.log('Command sent successfully:', data);
-                
-                // Force refresh data to get the latest state
-                setTimeout(fetchData, 1000);
-                
-                // If it's a movement command, schedule another update after estimated completion
+                // Update position after a delay to simulate motor movement
                 if (command !== 'stop') {
-                    setTimeout(fetchData, 3000);
                     setTimeout(() => {
+                        document.getElementById('position').innerText = command === 'open' ? 'Extended' : 'Retracted';
+                        document.getElementById('motor').innerText = 'Idle';
                         document.getElementById('status').innerText = 'Status: Selesai';
-                        fetchData(); // One final update
-                    }, 5000);
+                    }, 3000);
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
                 document.getElementById('status').innerText = 'Status: Gagal mengirim perintah!';
-                alert('Gagal mengirim perintah: ' + error.message);
+                alert('Gagal mengirim perintah!');
             });
         }
+                // Fungsi untuk menerapkan tema dari localStorage
+                function applyTheme() {
+            // Cek preferensi tema dari localStorage
+            const currentTheme = localStorage.getItem('theme');
+            const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
+            
+            // Terapkan tema berdasarkan prioritas: localStorage, kemudian preferensi sistem
+            if (currentTheme === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            } else if (currentTheme === 'light') {
+                document.documentElement.setAttribute('data-theme', 'light');
+            } else if (prefersDarkScheme.matches) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+        }
+        
+
+        // Jalankan saat halaman dimuat
+        document.addEventListener('DOMContentLoaded', applyTheme);
     </script>
 </body>
 </html>
