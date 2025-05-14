@@ -24,6 +24,12 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 print(f"Current working directory: {os.getcwd()}")
 print(f"Absolute path to app: {os.path.abspath(__file__)}")
 
+
+NODEMCU_CONFIG = {
+    'base_url': 'http://http://192.168.8.137/',  # Ganti dengan IP sebenarnya dari NodeMCU
+    'timeout': 3.0  # Timeout lebih pendek untuk mencegah blocking
+}
+
 # Validasi dan perbaiki base_url NodeMCU jika perlu
 if 'base_url' in config.NODEMCU_CONFIG:
     if config.NODEMCU_CONFIG['base_url'] and not config.NODEMCU_CONFIG['base_url'].startswith(('http://', 'https://')):
