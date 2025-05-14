@@ -8,59 +8,7 @@
     <!-- Add Chart.js library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <style>
-        /* Add spinner for loading state */
-        .loading-spinner {
-            border: 4px solid rgba(0, 0, 0, 0.1);
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            border-left: 4px solid #3498db;
-            animation: spin 1s linear infinite;
-            margin: 20px auto;
-            display: none;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        /* Flash animation for value updates */
-        @keyframes flash {
-            0% { background-color: transparent; }
-            50% { background-color: rgba(52, 152, 219, 0.3); }
-            100% { background-color: transparent; }
-        }
-        
-        .value-update {
-            animation: flash 0.5s;
-        }
-        
-        /* Connection status indicator */
-        .connection-status {
-            padding: 10px;
-            border-radius: 5px;
-            margin: 10px 0;
-            text-align: center;
-            font-weight: bold;
-        }
-        
-        .connected {
-            background-color: #d4edda;
-            color: #155724;
-        }
-        
-        .disconnected {
-            background-color: #f8d7da;
-            color: #721c24;
-        }
-        
-        .connecting {
-            background-color: #fff3cd;
-            color: #856404;
-        }
-    </style>
+
 </head>
 <body>
     <header id="main-header">
