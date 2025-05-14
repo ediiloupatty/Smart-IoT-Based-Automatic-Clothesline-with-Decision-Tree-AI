@@ -40,6 +40,16 @@ NODEMCU_CONFIG = {
     'timeout': float(os.environ.get('NODEMCU_TIMEOUT', '10'))
 }
 
+# Fix for handling URLs in production environment
+if IS_PRODUCTION:
+    # Make sure URL always has http:// prefix
+    if NODEMCU_CONFIG['base_url'] and not NODEMCU_CONFIG['base_url'].startswith(('http://', 'https://')):
+        NODEMCU_CONFIG['base_url'] = 'http://' + NODEMCU_CONFIG['base_url']
+    
+    # Make sure URL ends with a trailing slash
+    if NODEMCU_CONFIG['base_url'] and not NODEMCU_CONFIG['base_url'].endswith('/'):
+        NODEMCU_CONFIG['base_url'] += '/'
+
 # Auto mode settings
 AUTO_SETTINGS = {
     'enabled': os.environ.get('AUTO_ENABLED', 'False').lower() == 'true',
@@ -152,6 +162,13 @@ def load_all_settings():
         NODEMCU_CONFIG['base_url'] = base_url
         NODEMCU_CONFIG['timeout'] = timeout
         
+        # Fix the URL format after loading from settings
+        if NODEMCU_CONFIG['base_url'] and not NODEMCU_CONFIG['base_url'].startswith(('http://', 'https://')):
+            NODEMCU_CONFIG['base_url'] = 'http://' + NODEMCU_CONFIG['base_url']
+        
+        if NODEMCU_CONFIG['base_url'] and not NODEMCU_CONFIG['base_url'].endswith('/'):
+            NODEMCU_CONFIG['base_url'] += '/'
+        
         # Load auto settings
         AUTO_SETTINGS['enabled'] = load_setting('auto_enabled', 'False') == 'True'
         AUTO_SETTINGS['lightThreshold'] = int(load_setting('light_threshold', AUTO_SETTINGS['lightThreshold']))
@@ -184,6 +201,21 @@ def log_polling_event(success, response_time, message=""):
     except Exception as e:
         print(f"Error logging polling event: {str(e)}")
 
+def validate_url(url):
+    """Validate and fix URL format"""
+    if not url:
+        return url
+    
+    # Add http:// if no schema provided
+    if not url.startswith(('http://', 'https://')):
+        url = 'http://' + url
+    
+    # Ensure trailing slash
+    if not url.endswith('/'):
+        url += '/'
+    
+    return url
+
 # Print system info
 print(f"System: {platform.system()} {platform.release()}")
 print(f"Python: {platform.python_version()}")
@@ -194,3 +226,7 @@ print(f"Polling mode: HTTP polling (interval: {Config.POLLING_INTERVAL}s)")
 # Initialize the database and load settings when this module is imported
 init_db()
 load_all_settings()
+
+# Validate NodeMCU URL after loading settings
+NODEMCU_CONFIG['base_url'] = validate_url(NODEMCU_CONFIG['base_url'])
+print(f"NodeMCU URL configured as: {NODEMCU_CONFIG['base_url']}")
