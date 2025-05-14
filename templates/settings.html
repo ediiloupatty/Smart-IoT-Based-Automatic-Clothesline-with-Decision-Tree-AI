@@ -3,15 +3,426 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pengaturan Sistem | Smart Clothesline System</title>
+    <title>System Settings | Smart Clothesline System</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        :root {
+            --primary-color: #0077cc;
+            --secondary-color: #005fa3;
+            --bg-color: #f5f8fa;
+            --card-bg: #ffffff;
+            --text-color: #333333;
+            --border-color: #e1e8ed;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
+            --header-bg: #0077cc;
+            --header-text: #ffffff;
+        }
+
+        [data-theme="dark"] {
+            --primary-color: #1a91ff;
+            --secondary-color: #0084ff;
+            --bg-color: #15202b;
+            --card-bg: #192734;
+            --text-color: #ffffff;
+            --border-color: #38444d;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
+            --header-bg: #1a91ff;
+            --header-text: #ffffff;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: all 0.3s ease;
+        }
+
+        #main-header {
+            background-color: var(--header-bg);
+            color: var(--header-text);
+            padding: 1rem 0;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .logo i {
+            margin-right: 0.5rem;
+            font-size: 1.8rem;
+        }
+
+        .nav-links a {
+            color: var(--header-text);
+            text-decoration: none;
+            margin-left: 1.5rem;
+            font-weight: 500;
+            opacity: 0.8;
+            transition: opacity 0.3s;
+        }
+
+        .nav-links a.active, .nav-links a:hover {
+            opacity: 1;
+            border-bottom: 2px solid var(--header-text);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        .main-content {
+            min-height: calc(100vh - 180px);
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr;
+            grid-gap: 2rem;
+        }
+
+        @media (min-width: 768px) {
+            .dashboard {
+                grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            }
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 1.5rem;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .card h2 {
+            margin-bottom: 1.5rem;
+            color: var(--primary-color);
+            font-size: 1.5rem;
+            border-bottom: 2px solid var(--border-color);
+            padding-bottom: 0.5rem;
+        }
+
+        footer {
+            text-align: center;
+            padding: 1.5rem 0;
+            margin-top: 2rem;
+            background-color: var(--card-bg);
+            border-top: 1px solid var(--border-color);
+        }
+
+        /* Animations */
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        .value-update {
+            animation: pulse 0.5s ease;
+            background-color: rgba(255, 193, 7, 0.3);
+        }
+
+        /* Connection status indicator */
+        .connection-status {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding: 0.5rem;
+            border-radius: 6px;
+            background-color: rgba(0, 0, 0, 0.05);
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+        }
+
+        .status-connected {
+            background-color: var(--success-color);
+        }
+
+        .status-disconnected {
+            background-color: var(--danger-color);
+        }
+
+        .toggle-theme {
+            background: none;
+            border: none;
+            color: var(--header-text);
+            cursor: pointer;
+            font-size: 1.2rem;
+            margin-left: 1rem;
+        }
+
+        /* Form styles */
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        .form-control:focus {
+            border-color: var(--primary-color);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(0, 119, 204, 0.2);
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            margin-right: 0.5rem;
+            width: 18px;
+            height: 18px;
+        }
+
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--secondary-color);
+        }
+
+        .btn-secondary {
+            background-color: var(--border-color);
+            color: var(--text-color);
+        }
+
+        .btn-secondary:hover {
+            background-color: #d1d8dd;
+        }
+
+        /* Range slider styling */
+        .range-container {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .range-slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            background: var(--border-color);
+            outline: none;
+            margin-bottom: 0.5rem;
+        }
+
+        .range-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+
+        .range-slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            cursor: pointer;
+            transition: background 0.15s ease;
+        }
+
+        .range-slider::-webkit-slider-thumb:hover {
+            background: var(--secondary-color);
+        }
+
+        .range-slider::-moz-range-thumb:hover {
+            background: var(--secondary-color);
+        }
+
+        .range-values {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            color: var(--text-color);
+        }
+
+        .range-display {
+            text-align: center;
+            font-weight: bold;
+            margin-top: 0.5rem;
+        }
+
+        /* Toggle switch */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 52px;
+            height: 26px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--border-color);
+            transition: .4s;
+            border-radius: 26px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: var(--success-color);
+        }
+
+        input:focus + .slider {
+            box-shadow: 0 0 1px var(--success-color);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+
+        .toggle-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .toggle-row:last-child {
+            border-bottom: none;
+        }
+
+        .toggle-label {
+            font-weight: 500;
+        }
+
+        /* Select styling */
+        select.form-control {
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+            background-size: 16px 12px;
+            padding-right: 2.5rem;
+        }
+
+        /* Save notification */
+        #save-notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            background-color: var(--success-color);
+            color: white;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            transform: translateY(-100px);
+            opacity: 0;
+            transition: all 0.5s ease;
+            z-index: 1000;
+        }
+
+        #save-notification.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    </style>
 </head>
 <body>
-    <div id="theme-loading-screen">
-        <div class="loader"></div>
-    </div>
     <header id="main-header">
         <div class="header-container">
             <div class="logo">
@@ -19,505 +430,782 @@
                 <span>Smart Clothesline System</span>
             </div>
             <div class="nav-links">
-                <a href="/index">Beranda</a>
+                <a href="/">Home</a>
                 <a href="/realtime-monitoring">Real-time Monitoring</a>
-                <a href="/control">Kontrol Manual</a>
-                <a href="/settings" class="active">Pengaturan Sistem</a>
+                <a href="/control">Manual Control</a>
+                <a href="/settings" class="active">System Settings</a>
+                <button id="theme-toggle" class="toggle-theme">
+                    <i class="fas fa-moon"></i>
+                </button>
             </div>
         </div>
     </header>
 
     <div class="container main-content">
-        <div id="alert-success" class="alert alert-success">
-            <i class="fas fa-check-circle"></i> Pengaturan berhasil disimpan!
-        </div>
-        <div id="alert-danger" class="alert alert-danger">
-            <i class="fas fa-exclamation-circle"></i> Gagal menyimpan pengaturan. Silakan coba lagi.
-        </div>
-        
         <div class="dashboard">
             <div class="card">
-                <h2>Pengaturan Tampilan</h2>
-                <div class="form-group theme-switch-wrapper">
-                    <label for="dark-mode">
-                        <span class="theme-switch-icon" id="theme-icon"><i class="fas fa-sun"></i></span>
-                        Mode Tampilan:
-                    </label>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="dark-mode">
-                        <span class="slider"></span>
-                    </label>
-                    <span id="theme-text" style="margin-left: 10px;">Mode Terang</span>
+                <div class="connection-status">
+                    <div id="connection-dot" class="status-dot status-disconnected"></div>
+                    <span id="connection-text">Checking connection...</span>
                 </div>
-            </div>
-            
-            <div class="card">
-                <h2>Pengaturan Koneksi</h2>
+                
+                <h2><i class="fas fa-cog"></i> System Settings</h2>
                 <form id="settings-form">
                     <div class="form-group">
-                        <label for="base-url">URL API:</label>
-                        <input type="text" id="base-url" name="base-url" placeholder="http://192.168.137.93/">
-                        <small>URL NodeMCU atau Server API (contoh: http://192.168.137.93/ atau https://iot-clothesline-system.onrender.com)</small>
+                        <label for="device-name">Device Name</label>
+                        <input type="text" id="device-name" class="form-control" placeholder="e.g. Backyard Clothesline">
                     </div>
-                    
+
                     <div class="form-group">
-                        <label for="connection-timeout">Batas Waktu Koneksi (detik):</label>
-                        <input type="number" id="connection-timeout" name="connection-timeout" min="1" max="30" step="1" value="5">
+                        <label for="wifi-ssid">WiFi SSID</label>
+                        <input type="text" id="wifi-ssid" class="form-control" placeholder="Network name">
                     </div>
-                    
-                    <button type="submit" id="save-config">Simpan Konfigurasi</button>
-                    <button type="button" id="test-connection" class="secondary-button">
-                        <i class="fas fa-network-wired"></i> Tes Koneksi
-                    </button>
-                    <span id="connection-status"></span>
+
+                    <div class="form-group">
+                        <label for="wifi-password">WiFi Password</label>
+                        <input type="password" id="wifi-password" class="form-control" placeholder="Network password">
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" id="reset-btn" class="btn btn-secondary">Reset</button>
+                        <button type="submit" id="save-btn" class="btn btn-primary">Save Changes</button>
+                    </div>
                 </form>
             </div>
             
             <div class="card">
-                <h2>Pengaturan Mode Otomatis</h2>
-                <div class="auto-settings-container">
-                    <div class="form-group">
-                        <label>Mode Otomatis:</label>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="auto-mode">
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="light-threshold">Batas Intensitas Cahaya:</label>
-                        <input type="range" id="light-threshold" name="light-threshold" min="0" max="1023" value="500">
-                        <div class="threshold-display">
-                            Nilai: <span id="light-threshold-value" class="threshold-value">500</span>
+                <h2><i class="fas fa-sliders-h"></i> Sensor Thresholds</h2>
+                <div class="form-group">
+                    <label for="light-threshold">Light Sensor (LDR) Threshold</label>
+                    <div class="range-container">
+                        <input type="range" id="light-threshold" class="range-slider" min="0" max="1023" value="500">
+                        <div class="range-values">
+                            <span>Darker</span>
+                            <span>Brighter</span>
                         </div>
+                        <div class="range-display">Value: <span id="light-value">500</span></div>
                     </div>
-                    
-                    <div class="form-group">
-                        <label for="rain-threshold">Sensitivitas Hujan:</label>
-                        <input type="range" id="rain-threshold" name="rain-threshold" min="0" max="1023" value="500">
-                        <div class="threshold-display">
-                            Nilai: <span id="rain-threshold-value" class="threshold-value">500</span>
+                    <p class="form-help">The clothesline will extend when light level exceeds this threshold.</p>
+                </div>
+
+                <div class="form-group">
+                    <label for="rain-threshold">Rain Sensor Threshold</label>
+                    <div class="range-container">
+                        <input type="range" id="rain-threshold" class="range-slider" min="0" max="1023" value="300">
+                        <div class="range-values">
+                            <span>More Sensitive</span>
+                            <span>Less Sensitive</span>
                         </div>
+                        <div class="range-display">Value: <span id="rain-value">300</span></div>
                     </div>
-                    
-                    <button id="save-auto-settings">Simpan Pengaturan Otomatis</button>
+                    <p class="form-help">The clothesline will retract when rain level exceeds this threshold.</p>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" id="default-thresholds" class="btn btn-secondary">Reset to Default</button>
+                    <button type="button" id="save-thresholds" class="btn btn-primary">Save Thresholds</button>
                 </div>
             </div>
-        </div>
-        
-        <div class="card">
-            <h2>Model Prediksi Cuaca</h2>
-            <div class="data-item">
-                <span>Status Model Saat Ini:</span>
-                <span id="model-status">Belum Dilatih</span>
+
+            <div class="card">
+                <h2><i class="fas fa-toggle-on"></i> Automatic Controls</h2>
+                <div class="toggle-row">
+                    <span class="toggle-label">Enable Automatic Mode</span>
+                    <label class="switch">
+                        <input type="checkbox" id="auto-mode" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="toggle-row">
+                    <span class="toggle-label">Light Sensor Control</span>
+                    <label class="switch">
+                        <input type="checkbox" id="light-control" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="toggle-row">
+                    <span class="toggle-label">Rain Sensor Control</span>
+                    <label class="switch">
+                        <input type="checkbox" id="rain-control" checked>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="toggle-row">
+                    <span class="toggle-label">Time-based Schedule</span>
+                    <label class="switch">
+                        <input type="checkbox" id="schedule-control">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="form-group" id="schedule-settings" style="display: none;">
+                    <div class="form-group">
+                        <label for="extend-time">Extend Time</label>
+                        <input type="time" id="extend-time" class="form-control" value="07:00">
+                    </div>
+                    <div class="form-group">
+                        <label for="retract-time">Retract Time</label>
+                        <input type="time" id="retract-time" class="form-control" value="18:00">
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="button" id="save-auto" class="btn btn-primary">Save Automatic Settings</button>
+                </div>
             </div>
-            <div class="data-item">
-                <span>Tanggal Pelatihan Terakhir:</span>
-                <span id="last-training">-</span>
-            </div>
-            <div class="data-item">
-                <span>Akurasi Model:</span>
-                <span id="model-accuracy">-</span>
-            </div>
-            <button id="train-model"><i class="fas fa-sync"></i> Latih Model Prediksi Cuaca</button>
-            <p style="margin-top: 15px; font-size: 14px; color: #666;">
-                Pelatihan model akan menggunakan data sensor historis untuk meningkatkan akurasi prediksi cuaca.
-                Proses ini mungkin memakan waktu beberapa menit tergantung jumlah data.
-            </p>
-        </div>
-        
-        <div class="card">
-            <h2>Data Sensor</h2>
-            <button id="view-data-button" class="secondary-button">
-                <i class="fas fa-table"></i> Lihat Data Sensor
-            </button>
-            <div id="data-container" style="display: none; margin-top: 15px;">
-                <div class="table-container">
-                    <table id="data-table" class="data-table">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Waktu</th>
-                                <th>Cahaya</th>
-                                <th>Hujan</th>
-                                <th>Status</th>
-                                <th>Rotasi</th>
-                            </tr>
-                        </thead>
-                        <tbody id="data-tbody"></tbody>
-                    </table>
+
+            <div class="card">
+                <h2><i class="fas fa-tools"></i> System Maintenance</h2>
+                <div class="form-group">
+                    <label for="firmware-version">Current Firmware Version</label>
+                    <input type="text" id="firmware-version" class="form-control" value="v1.2.0" disabled>
+                </div>
+
+                <div class="form-group">
+                    <label for="update-channel">Update Channel</label>
+                    <select id="update-channel" class="form-control">
+                        <option value="stable">Stable</option>
+                        <option value="beta">Beta</option>
+                        <option value="developer">Developer</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <button type="button" id="check-updates" class="btn btn-primary">Check for Updates</button>
+                </div>
+
+                <div class="form-group">
+                    <label>System Operations</label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; grid-gap: 1rem;">
+                        <button type="button" id="reboot-device" class="btn btn-secondary">Reboot Device</button>
+                        <button type="button" id="factory-reset" class="btn btn-secondary">Factory Reset</button>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <div id="save-notification">Settings saved successfully!</div>
+
     <footer>
-        <p>© 2025 Smart Clothesline System. Hak cipta dilindungi.</p>
+        <p>© 2023 Smart Clothesline System. All rights reserved.</p>
         <p>IoT Innovation Lab</p>
     </footer>
 
     <script>
-        // Tema gelap (dark mode) functionality
-        const darkModeToggle = document.getElementById('dark-mode');
-        const themeIcon = document.getElementById('theme-icon');
-        const themeText = document.getElementById('theme-text');
-
-        // Check for saved theme preference or use system preference
-        const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
-        const currentTheme = localStorage.getItem('theme');
-
-        if (currentTheme === 'dark') {
-            document.documentElement.setAttribute('data-theme', 'dark');
-            darkModeToggle.checked = true;
-            themeIcon.innerHTML = '<i class="fas fa-moon"></i>';
-            themeText.textContent = 'Mode Gelap';
-        } else if (currentTheme === 'light') {
-            document.documentElement.setAttribute('data-theme', 'light');
-            darkModeToggle.checked = false;
-            themeIcon.innerHTML = '<i class="fas fa-sun"></i>';
-            themeText.textContent = 'Mode Terang';
-        } else if (prefersDarkScheme.matches) {
-            document.documentElement.setAttribute('data-theme', 'dark');
-            darkModeToggle.checked = true;
-            themeIcon.innerHTML = '<i class="fas fa-moon"></i>';
-            themeText.textContent = 'Mode Gelap';
+        // Theme Toggle Functionality
+        const themeToggle = document.getElementById('theme-toggle');
+        const themeIcon = themeToggle.querySelector('i');
+        
+        function applyTheme() {
+            // Check theme preference from localStorage
+            const currentTheme = localStorage.getItem('theme');
+            const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
+            
+            // Apply theme based on priority: localStorage, then system preference
+            if (currentTheme === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                themeIcon.className = 'fas fa-sun';
+            } else if (currentTheme === 'light') {
+                document.documentElement.setAttribute('data-theme', 'light');
+                themeIcon.className = 'fas fa-moon';
+            } else if (prefersDarkScheme.matches) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                themeIcon.className = 'fas fa-sun';
+            }
         }
-
-        // Listen for toggle changes
-        // Modifikasi event listener dark mode toggle
-        darkModeToggle.addEventListener('change', function() {
-            // Tampilkan loading screen
-            const loadingScreen = document.getElementById('theme-loading-screen');
-            loadingScreen.classList.add('active');
+        
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = document.documentElement.getAttribute('data-theme');
             
-            // Delay sedikit untuk memastikan transisi dimulai
-            setTimeout(() => {
-                if (this.checked) {
-                    document.documentElement.setAttribute('data-theme', 'dark');
-                    localStorage.setItem('theme', 'dark');
-                    themeIcon.innerHTML = '<i class="fas fa-moon"></i>';
-                    themeText.textContent = 'Mode Gelap';
-                    console.log('Dark mode activated');
-                } else {
-                    document.documentElement.setAttribute('data-theme', 'light');
-                    localStorage.setItem('theme', 'light');
-                    themeIcon.innerHTML = '<i class="fas fa-sun"></i>';
-                    themeText.textContent = 'Mode Terang';
-                    console.log('Light mode activated');
-                }
-                
-                // Beri waktu 500ms untuk transisi tema selesai
-                // lalu sembunyikan loading screen
-                setTimeout(() => {
-                    loadingScreen.classList.remove('active');
-                }, 500);
-            }, 100);
-        });
-
-        // Update threshold value displays with visual feedback
-        document.getElementById('light-threshold').addEventListener('input', function() {
-            const value = this.value;
-            document.getElementById('light-threshold-value').textContent = value;
-            
-            // Add visual feedback for threshold ranges
-            if (value < 200) {
-                document.getElementById('light-threshold-value').style.color = '#3498db'; // Blue for low light
-            } else if (value > 800) {
-                document.getElementById('light-threshold-value').style.color = '#f39c12'; // Orange for high light
+            if (currentTheme === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'light');
+                localStorage.setItem('theme', 'light');
+                themeIcon.className = 'fas fa-moon';
             } else {
-                document.getElementById('light-threshold-value').style.color = '#2ecc71'; // Green for mid range
+                document.documentElement.setAttribute('data-theme', 'dark');
+                localStorage.setItem('theme', 'dark');
+                themeIcon.className = 'fas fa-sun';
             }
         });
+        
+        // Run on page load
+        applyTheme();
 
-        document.getElementById('rain-threshold').addEventListener('input', function() {
-            const value = this.value;
-            document.getElementById('rain-threshold-value').textContent = value;
-            
-            // Add visual feedback for threshold ranges
-            if (value < 200) {
-                document.getElementById('rain-threshold-value').style.color = '#3498db'; // Blue for dry
-            } else if (value > 800) {
-                document.getElementById('rain-threshold-value').style.color = '#9b59b6'; // Purple for wet
-            } else {
-                document.getElementById('rain-threshold-value').style.color = '#2ecc71'; // Green for mid range
-            }
+        // Global variables
+        let isConnected = false;
+        let pollingInterval;
+        let retryCount = 0;
+        const MAX_RETRIES = 5;
+        const RETRY_DELAY = 5000; // 5 seconds
+        const POLLING_INTERVAL = 3000; // 3 seconds
+        
+        // Initialize connection
+        document.addEventListener('DOMContentLoaded', () => {
+            checkConnection();
+            initializeRangeSliders();
+            initializeFormListeners();
         });
-
-        // Form submission handler - updated to match app.py route
-        document.getElementById('settings-form').addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const config = {
-                base_url: document.getElementById('base-url').value,
-                timeout: parseFloat(document.getElementById('connection-timeout').value)
-            };
-            
-            saveSystemConfig(config);
-        });
-
-        // Enhanced Auto Settings handler with confirmation - matches app.py route
-        document.getElementById('save-auto-settings').addEventListener('click', function() {
-            // Get current values
-            const autoEnabled = document.getElementById('auto-mode').checked;
-            const lightThreshold = parseInt(document.getElementById('light-threshold').value);
-            const rainThreshold = parseInt(document.getElementById('rain-threshold').value);
-            
-            // Show a confirmation dialog when enabling auto mode
-            if (autoEnabled) {
-                const confirmEnable = confirm(
-                    "Mengaktifkan Mode Otomatis akan mengizinkan sistem untuk mengendalikan jemuran Anda " +
-                    "secara otomatis berdasarkan kondisi cuaca.\n\n" +
-                    "Batas Cahaya: " + lightThreshold + "\n" +
-                    "Batas Hujan: " + rainThreshold + "\n\n" +
-                    "Apakah Anda yakin ingin mengaktifkan Mode Otomatis?"
-                );
-                
-                if (!confirmEnable) {
-                    document.getElementById('auto-mode').checked = false;
-                    return;
-                }
-            }
-            
-            const autoSettings = {
-                enabled: autoEnabled,
-                lightThreshold: lightThreshold,
-                rainThreshold: rainThreshold
-            };
-            
-            saveAutoSettings(autoSettings);
-        });
-
-        // Test connection button handler - updated to match app.py route
-        document.getElementById('test-connection').addEventListener('click', function() {
-            this.disabled = true;
-            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Menguji...';
-            const connectionStatus = document.getElementById('connection-status');
-            connectionStatus.textContent = 'Memeriksa koneksi...';
-            connectionStatus.className = '';
-            
+        
+        function checkConnection() {
             fetch('/check-nodemcu')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        connectionStatus.textContent = 'Terhubung dengan sukses!';
-                        connectionStatus.className = 'text-success';
-                    } else {
-                        connectionStatus.textContent = `Gagal: ${data.message}`;
-                        connectionStatus.className = 'text-danger';
-                    }
-                })
-                .catch(error => {
-                    connectionStatus.textContent = `Error: ${error.message}`;
-                    connectionStatus.className = 'text-danger';
-                })
-                .finally(() => {
-                    this.disabled = false;
-                    this.innerHTML = '<i class="fas fa-network-wired"></i> Tes Koneksi';
-                });
-        });
-
-        // Train model handler - matches app.py route
-        document.getElementById('train-model').addEventListener('click', function() {
-            this.disabled = true;
-            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Melatih model...';
-            
-            fetch('/train-model', {
-                method: 'POST'
-            })
                 .then(response => {
-                    if (!response.ok) {
-                        return response.json().then(data => {
-                            throw new Error(data.error || 'Terjadi kesalahan yang tidak diketahui');
-                        });
-                    }
+                    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
                     return response.json();
                 })
                 .then(data => {
-                    if (data.accuracy) {
-                        document.getElementById('model-status').textContent = 'Sudah Dilatih';
-                        document.getElementById('last-training').textContent = new Date().toLocaleString();
-                        document.getElementById('model-accuracy').textContent = (data.accuracy * 100).toFixed(2) + '%';
-                        
-                        showAlert('success', 'Model berhasil dilatih!');
+                    if (data.status === 'connected' || data.status === 'partial') {
+                        setConnectionStatus(true, data.message);
+                        loadSettings();
                     } else {
-                        showAlert('danger', 'Gagal melatih model: ' + (data.error || 'Kesalahan tidak diketahui'));
+                        setConnectionStatus(false, data.message);
+                        scheduleRetry();
                     }
                 })
                 .catch(error => {
-                    console.error('Error details:', error);
-                    showAlert('danger', 'Gagal melatih model: ' + error.message);
-                })
-                .finally(() => {
-                    this.disabled = false;
-                    this.innerHTML = '<i class="fas fa-sync"></i> Latih Model Prediksi Cuaca';
+                    console.error('Connection check failed:', error);
+                    setConnectionStatus(false, 'Connection error');
+                    scheduleRetry();
                 });
-        });
-
-        // Data viewer button handler - matches app.py route
-        document.getElementById('view-data-button').addEventListener('click', function() {
-            const dataContainer = document.getElementById('data-container');
+        }
+        
+        function setConnectionStatus(connected, message) {
+            const statusDot = document.getElementById('connection-dot');
+            const statusText = document.getElementById('connection-text');
             
-            if (dataContainer.style.display === 'none') {
-                this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Memuat data...';
-                this.disabled = true;
-                
-                fetch('/view-data')
-                    .then(response => response.json())
-                    .then(data => {
-                        const tbody = document.getElementById('data-tbody');
-                        tbody.innerHTML = '';
-                        
-                        if (data.length === 0) {
-                            const row = document.createElement('tr');
-                            row.innerHTML = '<td colspan="6" class="text-center">Tidak ada data sensor tersedia</td>';
-                            tbody.appendChild(row);
-                        } else {
-                            data.forEach(record => {
-                                const row = document.createElement('tr');
-                                row.innerHTML = `
-                                    <td>${record.id}</td>
-                                    <td>${record.timestamp}</td>
-                                    <td>${record.ldr}</td>
-                                    <td>${record.rain}</td>
-                                    <td>${record.status}</td>
-                                    <td>${record.rotation}</td>
-                                `;
-                                tbody.appendChild(row);
-                            });
-                        }
-                        
-                        dataContainer.style.display = 'block';
-                        this.innerHTML = '<i class="fas fa-eye-slash"></i> Sembunyikan Data Sensor';
-                    })
-                    .catch(error => {
-                        console.error('Error loading data:', error);
-                        showAlert('danger', 'Gagal memuat data sensor');
-                    })
-                    .finally(() => {
-                        this.disabled = false;
-                    });
+            isConnected = connected;
+            
+            if (connected) {
+                statusDot.className = 'status-dot status-connected';
+                statusText.innerText = message || 'Connected';
+                retryCount = 0; // Reset retry counter on successful connection
             } else {
-                dataContainer.style.display = 'none';
-                this.innerHTML = '<i class="fas fa-table"></i> Lihat Data Sensor';
+                statusDot.className = 'status-dot status-disconnected';
+                statusText.innerText = message || 'Disconnected';
             }
-        });
-
-        // Save system configuration - matches app.py route
-        function saveSystemConfig(config) {
-            fetch('/save-config', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(config)
-            })
-            .then(response => {
-                if (!response.ok) throw new Error('Gagal menyimpan');
-                return response.json();
-            })
-            .then(data => {
-                showAlert('success', 'Pengaturan koneksi berhasil disimpan!');
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showAlert('danger', 'Gagal menyimpan konfigurasi');
+        }
+        
+        function scheduleRetry() {
+            retryCount++;
+            
+            if (retryCount <= MAX_RETRIES) {
+                document.getElementById('connection-text').innerText = `Connection failed. Retrying (${retryCount}/${MAX_RETRIES})...`;
+                setTimeout(checkConnection, RETRY_DELAY);
+            } else {
+                document.getElementById('connection-text').innerText = 'Connection failed. Please check your NodeMCU.';
+            }
+        }
+        
+        function initializeRangeSliders() {
+            // Light threshold slider
+            const lightSlider = document.getElementById('light-threshold');
+            const lightValue = document.getElementById('light-value');
+            
+            lightSlider.addEventListener('input', function() {
+                lightValue.textContent = this.value;
+            });
+            
+            // Rain threshold slider
+            const rainSlider = document.getElementById('rain-threshold');
+            const rainValue = document.getElementById('rain-value');
+            
+            rainSlider.addEventListener('input', function() {
+                rainValue.textContent = this.value;
             });
         }
-
-        // Save auto mode settings - matches app.py route
-        function saveAutoSettings(settings) {
-            fetch('/save-auto-settings', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(settings)
-            })
-            .then(response => {
-                if (!response.ok) throw new Error('Gagal menyimpan');
-                return response.json();
-            })
-            .then(data => {
-                showAlert('success', 'Pengaturan mode otomatis berhasil disimpan!');
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showAlert('danger', 'Gagal menyimpan pengaturan mode otomatis');
+        
+        function initializeFormListeners() {
+            // Schedule toggle
+            const scheduleToggle = document.getElementById('schedule-control');
+            const scheduleSettings = document.getElementById('schedule-settings');
+            
+            scheduleToggle.addEventListener('change', function() {
+                scheduleSettings.style.display = this.checked ? 'block' : 'none';
+            });
+            
+            // Settings form submit
+            const settingsForm = document.getElementById('settings-form');
+            settingsForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                saveNetworkSettings();
+            });
+            
+            // Reset button
+            const resetBtn = document.getElementById('reset-btn');
+            resetBtn.addEventListener('click', function() {
+                settingsForm.reset();
+            });
+            
+            // Threshold save button
+            const saveThresholdsBtn = document.getElementById('save-thresholds');
+            saveThresholdsBtn.addEventListener('click', function() {
+                saveThresholds();
+            });
+            
+            // Default thresholds button
+            const defaultThresholdsBtn = document.getElementById('default-thresholds');
+            defaultThresholdsBtn.addEventListener('click', function() {
+                document.getElementById('light-threshold').value = 500;
+                document.getElementById('light-value').textContent = 500;
+                document.getElementById('rain-threshold').value = 300;
+                document.getElementById('rain-value').textContent = 300;
+            });
+            
+            // Auto settings save button
+            const saveAutoBtn = document.getElementById('save-auto');
+            saveAutoBtn.addEventListener('click', function() {
+                saveAutoSettings();
+            });
+            
+            // Reboot button
+            const rebootBtn = document.getElementById('reboot-device');
+            rebootBtn.addEventListener('click', function() {
+                if (confirm('Are you sure you want to reboot the device?')) {
+                    rebootDevice();
+                }
+            });
+            
+            // Factory reset button
+            const factoryResetBtn = document.getElementById('factory-reset');
+            factoryResetBtn.addEventListener('click', function() {
+                if (confirm('WARNING: This will reset all settings to factory defaults. Continue?')) {
+                    factoryReset();
+                }
+            });
+            
+            // Check updates button
+            const checkUpdatesBtn = document.getElementById('check-updates');
+            checkUpdatesBtn.addEventListener('click', function() {
+                checkForUpdates();
             });
         }
-
-        // Show alert messages
-        function showAlert(type, message) {
-            const alert = document.getElementById(`alert-${type}`);
-            alert.textContent = message;
-            alert.style.display = 'block';
+        
+        function loadSettings() {
+            if (!isConnected) return;
             
-            setTimeout(() => {
-                alert.style.display = 'none';
-            }, 3000);
+            fetch('/get_settings')
+                .then(response => {
+                    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Settings received:', data);
+                    populateSettings(data);
+                })
+                .catch(error => {
+                    console.error('Error fetching settings:', error);
+                });
         }
-
-        // Load current settings when page loads - matches app.py routes
-        document.addEventListener('DOMContentLoaded', function() {
-            loadCurrentSettings();
-        });
-
-        function loadCurrentSettings() {
-            // Load system config
-            fetch('/get-config')
-                .then(response => response.json())
-                .then(data => {
-                    document.getElementById('base-url').value = data.base_url || '';
-                    document.getElementById('connection-timeout').value = data.timeout || '5';
-                })
-                .catch(error => console.error('Error loading config:', error));
+        
+        function populateSettings(data) {
+            // For demo purposes, populate with sample data if real data isn't available
+            if (!data || Object.keys(data).length === 0) {
+                console.warn('Empty settings received, using defaults');
+                data = {
+                    device_name: 'Smart Clothesline',
+                    wifi_ssid: 'HomeNetwork',
+                    light_threshold: 500,
+                    rain_threshold: 300,
+                    auto_mode: true,
+                    light_control: true,
+                    rain_control: true,
+                    schedule_control: false,
+                    extend_time: '07:00',
+                    retract_time: '18:00',
+                    firmware_version: 'v1.2.0',
+                    update_channel: 'stable'
+                };
+            }
             
-            // Load auto settings
-            fetch('/get-auto-settings')
-                .then(response => response.json())
-                .then(data => {
-                    document.getElementById('auto-mode').checked = data.enabled;
-                    document.getElementById('light-threshold').value = data.lightThreshold;
-                    document.getElementById('rain-threshold').value = data.rainThreshold;
-                    
-                    // Update displays and apply color coding
-                    const lightThreshold = data.lightThreshold;
-                    const rainThreshold = data.rainThreshold;
-                    const lightEl = document.getElementById('light-threshold-value');
-                    const rainEl = document.getElementById('rain-threshold-value');
-                    
-                    lightEl.textContent = lightThreshold;
-                    rainEl.textContent = rainThreshold;
-                    
-                    // Set colors based on values
-                    if (lightThreshold < 200) {
-                        lightEl.style.color = '#3498db'; // Blue for low light
-                    } else if (lightThreshold > 800) {
-                        lightEl.style.color = '#f39c12'; // Orange for high light
-                    } else {
-                        lightEl.style.color = '#2ecc71'; // Green for mid range
-                    }
-                    
-                    if (rainThreshold < 200) {
-                        rainEl.style.color = '#3498db'; // Blue for dry
-                    } else if (rainThreshold > 800) {
-                        rainEl.style.color = '#9b59b6'; // Purple for wet
-                    } else {
-                        rainEl.style.color = '#2ecc71'; // Green for mid range
-                    }
-                })
-                .catch(error => console.error('Error loading auto settings:', error));
+            // Populate form fields
+            if (data.device_name) document.getElementById('device-name').value = data.device_name;
+            if (data.wifi_ssid) document.getElementById('wifi-ssid').value = data.wifi_ssid;
             
-            // Load model info
-            fetch('/get-model-info')
-                .then(response => response.json())
-                .then(data => {
-                    document.getElementById('model-status').textContent = data.trained ? 'Sudah Dilatih' : 'Belum Dilatih';
-                    document.getElementById('last-training').textContent = data.lastTraining || '-';
-                    document.getElementById('model-accuracy').textContent = data.accuracy ? (data.accuracy * 100).toFixed(2) + '%' : '-';
-                })
-                .catch(error => console.error('Error loading model info:', error));
+            // Don't populate password for security reasons
+            
+            // Sensor thresholds
+            if (data.light_threshold) {
+                document.getElementById('light-threshold').value = data.light_threshold;
+                document.getElementById('light-value').textContent = data.light_threshold;
+            }
+            
+            if (data.rain_threshold) {
+                document.getElementById('rain-threshold').value = data.rain_threshold;
+                document.getElementById('rain-value').textContent = data.rain_threshold;
+            }
+            
+            // Auto settings
+            if (data.auto_mode !== undefined) document.getElementById('auto-mode').checked = data.auto_mode;
+            if (data.light_control !== undefined) document.getElementById('light-control').checked = data.light_control;
+            if (data.rain_control !== undefined) document.getElementById('rain-control').checked = data.rain_control;
+            if (data.schedule_control !== undefined) {
+                document.getElementById('schedule-control').checked = data.schedule_control;
+                document.getElementById('schedule-settings').style.display = data.schedule_control ? 'block' : 'none';
+            }
+            
+            if (data.extend_time) document.getElementById('extend-time').value = data.extend_time;
+            if (data.retract_time) document.getElementById('retract-time').value = data.retract_time;
+            
+            // System maintenance
+            if (data.firmware_version) document.getElementById('firmware-version').value = data.firmware_version;
+            if (data.update_channel) document.getElementById('update-channel').value = data.update_channel;
         }
-    </script>
-</body>
-</html>
+        function saveNetworkSettings() {
+    if (!isConnected) {
+        showNotification('Cannot save settings: Device is disconnected', 'error');
+        return;
+    }
+    
+    const deviceName = document.getElementById('device-name').value;
+    const wifiSSID = document.getElementById('wifi-ssid').value;
+    const wifiPassword = document.getElementById('wifi-password').value;
+    
+    // Validate inputs
+    if (!deviceName || !wifiSSID) {
+        showNotification('Please fill in all required fields', 'error');
+        return;
+    }
+    
+    const settings = {
+        device_name: deviceName,
+        wifi_ssid: wifiSSID
+    };
+    
+    // Only send password if it was changed (not empty)
+    if (wifiPassword) {
+        settings.wifi_password = wifiPassword;
+    }
+    
+    // Send settings to server
+    fetch('/save_network_settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings)
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Failed to save network settings');
+        return response.json();
+    })
+    .then(data => {
+        console.log('Network settings saved:', data);
+        showNotification('Network settings saved successfully');
+    })
+    .catch(error => {
+        console.error('Error saving network settings:', error);
+        showNotification('Failed to save network settings: ' + error.message, 'error');
+    });
+}
+
+function saveThresholds() {
+    if (!isConnected) {
+        showNotification('Cannot save settings: Device is disconnected', 'error');
+        return;
+    }
+    
+    const lightThreshold = document.getElementById('light-threshold').value;
+    const rainThreshold = document.getElementById('rain-threshold').value;
+    
+    const settings = {
+        light_threshold: parseInt(lightThreshold),
+        rain_threshold: parseInt(rainThreshold)
+    };
+    
+    fetch('/save_thresholds', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings)
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Failed to save threshold settings');
+        return response.json();
+    })
+    .then(data => {
+        console.log('Threshold settings saved:', data);
+        showNotification('Threshold settings saved successfully');
+    })
+    .catch(error => {
+        console.error('Error saving threshold settings:', error);
+        showNotification('Failed to save threshold settings: ' + error.message, 'error');
+    });
+}
+
+function saveAutoSettings() {
+    if (!isConnected) {
+        showNotification('Cannot save settings: Device is disconnected', 'error');
+        return;
+    }
+    
+    const autoMode = document.getElementById('auto-mode').checked;
+    const lightControl = document.getElementById('light-control').checked;
+    const rainControl = document.getElementById('rain-control').checked;
+    const scheduleControl = document.getElementById('schedule-control').checked;
+    const extendTime = document.getElementById('extend-time').value;
+    const retractTime = document.getElementById('retract-time').value;
+    
+    const settings = {
+        auto_mode: autoMode,
+        light_control: lightControl,
+        rain_control: rainControl,
+        schedule_control: scheduleControl,
+        extend_time: extendTime,
+        retract_time: retractTime
+    };
+    
+    fetch('/save_auto_settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings)
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Failed to save automatic settings');
+        return response.json();
+    })
+    .then(data => {
+        console.log('Automatic settings saved:', data);
+        showNotification('Automatic settings saved successfully');
+    })
+    .catch(error => {
+        console.error('Error saving automatic settings:', error);
+        showNotification('Failed to save automatic settings: ' + error.message, 'error');
+    });
+}
+
+function rebootDevice() {
+    if (!isConnected) {
+        showNotification('Cannot reboot: Device is disconnected', 'error');
+        return;
+    }
+    
+    fetch('/reboot_device', {
+        method: 'POST'
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Failed to reboot device');
+        return response.json();
+    })
+    .then(data => {
+        console.log('Reboot command sent:', data);
+        showNotification('Device is rebooting. Please wait...');
+        
+        // Show countdown
+        let countdown = 30;
+        setConnectionStatus(false, `Rebooting device (${countdown}s)`);
+        
+        const rebootInterval = setInterval(() => {
+            countdown--;
+            setConnectionStatus(false, `Rebooting device (${countdown}s)`);
+            
+            if (countdown <= 0) {
+                clearInterval(rebootInterval);
+                checkConnection(); // Try to reconnect after reboot
+            }
+        }, 1000);
+    })
+    .catch(error => {
+        console.error('Error rebooting device:', error);
+        showNotification('Failed to reboot device: ' + error.message, 'error');
+    });
+}
+
+function factoryReset() {
+    if (!isConnected) {
+        showNotification('Cannot reset: Device is disconnected', 'error');
+        return;
+    }
+    
+    fetch('/factory_reset', {
+        method: 'POST'
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Failed to reset device');
+        return response.json();
+    })
+    .then(data => {
+        console.log('Factory reset command sent:', data);
+        showNotification('Factory reset initiated. Device will reboot.');
+        
+        // Show countdown
+        let countdown = 45;
+        setConnectionStatus(false, `Factory resetting (${countdown}s)`);
+        
+        const resetInterval = setInterval(() => {
+            countdown--;
+            setConnectionStatus(false, `Factory resetting (${countdown}s)`);
+            
+            if (countdown <= 0) {
+                clearInterval(resetInterval);
+                // Refresh the page after factory reset
+                window.location.reload();
+            }
+        }, 1000);
+    })
+    .catch(error => {
+        console.error('Error resetting device:', error);
+        showNotification('Failed to factory reset device: ' + error.message, 'error');
+    });
+}
+
+function checkForUpdates() {
+    if (!isConnected) {
+        showNotification('Cannot check for updates: Device is disconnected', 'error');
+        return;
+    }
+    
+    const updateChannel = document.getElementById('update-channel').value;
+    
+    fetch('/check_updates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ channel: updateChannel })
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Failed to check for updates');
+        return response.json();
+    })
+    .then(data => {
+        console.log('Update check result:', data);
+        
+        if (data.update_available) {
+            if (confirm(`Update available: ${data.version}. Would you like to update now?`)) {
+                installUpdate(data.version);
+            } else {
+                showNotification(`Update available: ${data.version}. You can update later.`);
+            }
+        } else {
+            showNotification('No updates available. You are on the latest version.');
+        }
+    })
+    .catch(error => {
+        console.error('Error checking for updates:', error);
+        showNotification('Failed to check for updates: ' + error.message, 'error');
+    });
+}
+
+function installUpdate(version) {
+    fetch('/install_update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ version: version })
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Failed to install update');
+        return response.json();
+    })
+    .then(data => {
+        console.log('Update installation initiated:', data);
+        showNotification('Update installation started. Device will reboot when complete.');
+        
+        // Show progress indicator
+        let progress = 0;
+        setConnectionStatus(false, `Installing update (${progress}%)`);
+        
+        const updateInterval = setInterval(() => {
+            progress += 10;
+            setConnectionStatus(false, `Installing update (${progress}%)`);
+            
+            if (progress >= 100) {
+                clearInterval(updateInterval);
+                showNotification('Update complete. Device is rebooting...');
+                
+                // Wait for reboot
+                setTimeout(() => {
+                    checkConnection();
+                }, 10000);
+            }
+        }, 1000);
+    })
+    .catch(error => {
+        console.error('Error installing update:', error);
+        showNotification('Failed to install update: ' + error.message, 'error');
+    });
+}
+
+function showNotification(message, type = 'success') {
+    const notification = document.getElementById('save-notification');
+    notification.innerText = message;
+    
+    if (type === 'error') {
+        notification.style.backgroundColor = 'var(--danger-color)';
+    } else {
+        notification.style.backgroundColor = 'var(--success-color)';
+    }
+    
+    notification.classList.add('show');
+    
+    setTimeout(() => {
+        notification.classList.remove('show');
+    }, 3000);
+}
+
+// Mock functions for demo purposes
+function mockDataAndSettings() {
+    // This function simulates API responses for demonstration
+    const mockData = {
+        ldr: Math.floor(Math.random() * 1023),
+        rain: Math.floor(Math.random() * 100),
+        status: ['TERTUTUP', 'TERBUKA', 'BERGERAK_BUKA', 'BERGERAK_TUTUP'][Math.floor(Math.random() * 4)],
+        rotation: Math.random() > 0.5 ? 1 : 0,
+        weather: ['Sunny', 'Cloudy', 'Rainy'][Math.floor(Math.random() * 3)],
+        device_id: 'CLS-2023-004',
+        ip_address: '192.168.1.' + Math.floor(Math.random() * 255)
+    };
+    
+    const mockSettings = {
+        device_name: 'Smart Clothesline',
+        wifi_ssid: 'HomeNetwork',
+        light_threshold: 500,
+        rain_threshold: 300,
+        auto_mode: true,
+        light_control: true,
+        rain_control: true,
+        schedule_control: false,
+        extend_time: '07:00',
+        retract_time: '18:00',
+        firmware_version: 'v1.2.0',
+        update_channel: 'stable'
+    };
+    
+    return {
+        mockData: mockData,
+        mockSettings: mockSettings
+    };
+}
+
+// For development/testing purposes only - this can be removed in production
+if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    console.log('Running in development mode - using mock data');
+    
+    // Override the fetch function to return mock data
+    const originalFetch = window.fetch;
+    window.fetch = function(url, options) {
+        const { mockData, mockSettings } = mockDataAndSettings();
+        
+        if (url === '/check-nodemcu') {
+            return Promise.resolve({
+                ok: true,
+                json: () => Promise.resolve({ status: 'connected', message: 'Connected (DEV)' })
+            });
+        } else if (url === '/get_data') {
+            return Promise.resolve({
+                ok: true,
+                json: () => Promise.resolve(mockData)
+            });
+        } else if (url === '/get_settings') {
+            return Promise.resolve({
+                ok: true,
+                json: () => Promise.resolve(mockSettings)
+            });
+        } else if (options && options.method === 'POST') {
+            return Promise.resolve({
+                ok: true,
+                json: () => Promise.resolve({ status: 'success', message: 'Operation completed successfully' })
+            });
+        }
+        
+        // Pass through any other requests
+        return originalFetch(url, options);
+    };
+}
