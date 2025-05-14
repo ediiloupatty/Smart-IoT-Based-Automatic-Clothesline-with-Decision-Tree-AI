@@ -24,6 +24,13 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 print(f"Current working directory: {os.getcwd()}")
 print(f"Absolute path to app: {os.path.abspath(__file__)}")
 
+# Validasi dan perbaiki base_url NodeMCU jika perlu
+if 'base_url' in config.NODEMCU_CONFIG:
+    if config.NODEMCU_CONFIG['base_url'] and not config.NODEMCU_CONFIG['base_url'].startswith(('http://', 'https://')):
+        # Tambahkan skema HTTP jika tidak ada
+        config.NODEMCU_CONFIG['base_url'] = 'http://' + config.NODEMCU_CONFIG['base_url']
+        print(f"URL NodeMCU diperbaiki: {config.NODEMCU_CONFIG['base_url']}")
+
 # Initialize weather predictor model
 try:
     weather_predictor = WeatherPredictor()
@@ -209,13 +216,19 @@ def save_config():
         conf = request.json
         print(f"Saving config: {conf}")
         
-        config.NODEMCU_CONFIG['base_url'] = conf['base_url']
+        # Validasi dan perbaiki base_url jika perlu
+        base_url = conf['base_url']
+        if base_url and not base_url.startswith(('http://', 'https://')):
+            base_url = 'http://' + base_url
+            print(f"URL diperbaiki: {base_url}")
+        
+        config.NODEMCU_CONFIG['base_url'] = base_url
         config.NODEMCU_CONFIG['timeout'] = float(conf['timeout'])
         
-        config.save_setting('nodemcu_base_url', conf['base_url'])
+        config.save_setting('nodemcu_base_url', base_url)
         config.save_setting('nodemcu_timeout', str(conf['timeout']))
         
-        return jsonify({'status': 'success', 'message': 'Configuration saved!'})
+        return jsonify({'status': 'success', 'message': 'Konfigurasi tersimpan!'})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
@@ -237,7 +250,7 @@ def save_auto_settings():
         config.save_setting('light_threshold', str(settings['lightThreshold']))
         config.save_setting('rain_threshold', str(settings['rainThreshold']))
         
-        return jsonify({'status': 'success', 'message': 'Auto settings saved!'})
+        return jsonify({'status': 'success', 'message': 'Pengaturan otomatis tersimpan!'})
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
@@ -250,6 +263,38 @@ def check_nodemcu():
     from utils.nodemcu_manager import check_nodemcu_connection
     result, status_code = check_nodemcu_connection()
     return jsonify(result), status_code
+
+@app.route('/check-model-status')
+def check_model_status():
+    # Rute baru untuk memeriksa status model yang dibutuhkan oleh frontend
+    try:
+        return jsonify({
+            'model_trained_flag': config.MODEL_INFO.get('trained', False),
+            'model_loaded_in_memory': hasattr(weather_predictor, 'model') and weather_predictor.model is not None,
+            'enough_data': get_data_count() >= (weather_predictor.window_size + 10)
+        })
+    except Exception as e:
+        return jsonify({
+            'error': str(e),
+            'model_trained_flag': False,
+            'model_loaded_in_memory': False,
+            'enough_data': False
+        })
+
+@app.route('/force-train-model')
+def force_train_model():
+    # Rute baru untuk memaksa pelatihan model yang dibutuhkan oleh frontend
+    try:
+        result = weather_predictor.train()
+        return jsonify({
+            'status': 'success',
+            'accuracy': result.get('accuracy', 0)
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
 
 @app.route('/view-data')
 def view_data():
