@@ -87,9 +87,16 @@ def get_nodemcu_data(force_refresh=False):
                     with polling_lock:
                         latest_polled_data = data
                     
-                    # Save to database for historical records
+                    # PERBAIKAN: Simpan data ke database dengan parameter yang benar
                     try:
-                        save_sensor_data(data)
+                        from utils.database import save_sensor_data
+                        
+                        save_sensor_data(
+                            data.get('ldr', 0),
+                            data.get('rain', 0),
+                            data.get('status', 'UNKNOWN'),
+                            data.get('rotation', 0)
+                        )
                     except Exception as db_error:
                         print(f"Error saving sensor data to database: {db_error}")
                     

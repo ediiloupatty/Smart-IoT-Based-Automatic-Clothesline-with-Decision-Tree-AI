@@ -60,18 +60,19 @@ def nodemcu_reader():
             data = get_nodemcu_data()
             
             # If data was retrieved successfully
-            if data:
+            if data and isinstance(data, dict):
                 print(f"Data from NodeMCU: {data}")
                 
-                # Save data to database
+                # Save data to database - PERBAIKAN DISINI
+                # Memastikan semua parameter yang diperlukan disediakan
                 save_sensor_data(
                     data.get('ldr', 0),
                     data.get('rain', 0),
-                    data.get('status', ''),
+                    data.get('status', 'UNKNOWN'),
                     data.get('rotation', 0)
                 )
             else:
-                print("No data received from NodeMCU")
+                print("No data received from NodeMCU or data format invalid")
                 
             # Check auto mode and send commands if needed
             if config.AUTO_SETTINGS['enabled']:
