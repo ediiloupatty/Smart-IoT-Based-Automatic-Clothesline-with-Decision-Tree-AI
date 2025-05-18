@@ -6,35 +6,52 @@ import sqlite3
 from datetime import datetime
 import sys
 import os
+import time
 
 # Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import config
 
 def save_sensor_data(ldr, rain, status, rotation):
-    """Save sensor data to database"""
-    try:
-        conn = sqlite3.connect(config.DATABASE)
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        
-        conn.execute(
-            'INSERT INTO sensor_data (timestamp, ldr, rain, status, rotation) VALUES (?, ?, ?, ?, ?)',
-            (timestamp, int(ldr), int(rain), status, int(rotation))
-        )
-        conn.commit()
-        conn.close()
-        return True
-    except Exception as e:
-        print(f"Error saving sensor data: {e}")
-        return False
+    """Save sensor data to database with retry mechanism"""
+    max_retries = 5
+    retry_delay = 0.1  # 100ms initial delay
+    
+    for attempt in range(max_retries):
+        conn = None
+        try:
+            conn = sqlite3.connect(config.DATABASE, timeout=10)  # Tambah timeout
+            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            
+            conn.execute(
+                'INSERT INTO sensor_data (timestamp, ldr, rain, status, rotation) VALUES (?, ?, ?, ?, ?)',
+                (timestamp, int(ldr), int(rain), status, int(rotation))
+            )
+            conn.commit()
+            return True
+        except sqlite3.OperationalError as e:
+            if 'database is locked' in str(e) and attempt < max_retries - 1:
+                time.sleep(retry_delay)
+                retry_delay *= 2  # Exponential backoff
+                continue
+            else:
+                print(f"Error saving sensor data: {e}")
+                return False
+        except Exception as e:
+            print(f"Error saving sensor data: {e}")
+            return False
+        finally:
+            if conn:
+                conn.close()
+    return False
 
 def get_latest_data():
     """Get the latest sensor data from database"""
+    conn = None
     try:
-        conn = sqlite3.connect(config.DATABASE)
+        conn = sqlite3.connect(config.DATABASE, timeout=10)
         cursor = conn.execute('SELECT timestamp, ldr, rain, status, rotation FROM sensor_data ORDER BY id DESC LIMIT 1')
         row = cursor.fetchone()
-        conn.close()
         
         if row:
             return {
@@ -48,6 +65,9 @@ def get_latest_data():
     except Exception as e:
         print(f"Error fetching latest data: {e}")
         return None
+    finally:
+        if conn:
+            conn.close()
 
 def get_data_count():
     """Get the count of sensor data records"""
