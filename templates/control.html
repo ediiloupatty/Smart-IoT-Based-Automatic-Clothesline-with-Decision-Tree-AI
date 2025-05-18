@@ -1,211 +1,473 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kontrol Manual</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>Kontrol Jemuran - Smart Clothesline System</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body {
             background-color: #f8f9fa;
-            padding: 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .navbar-brand {
+            font-weight: bold;
         }
         .card {
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             margin-bottom: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
         }
-        .card-header {
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        .control-button {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.2rem;
+            margin-top: 10px;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+        .control-button:hover {
+            transform: scale(1.05);
+        }
+        .btn-open {
             background-color: #28a745;
-            color: white;
+            border-color: #28a745;
+        }
+        .btn-close {
+            background-color: #dc3545;
+            border-color: #dc3545;
+        }
+        .btn-stop {
+            background-color: #6c757d;
+            border-color: #6c757d;
         }
         .status-indicator {
-            width: 15px;
-            height: 15px;
+            width: 20px;
+            height: 20px;
             border-radius: 50%;
             display: inline-block;
-            margin-right: 5px;
+            margin-right: 8px;
+        }
+        .status-open {
+            background-color: #28a745;
+        }
+        .status-closed {
+            background-color: #dc3545;
+        }
+        .status-unknown {
+            background-color: #ffc107;
         }
         .sensor-value {
-            font-size: 1.5rem;
+            font-size: 2.2rem;
             font-weight: bold;
-            color: #007bff;
         }
-        .btn-control {
-            width: 120px;
-            margin: 5px;
+        .sensor-unit {
+            font-size: 1rem;
+            color: #6c757d;
+        }
+        .command-history {
+            max-height: 300px;
+            overflow-y: auto;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h3 class="mb-4">Kontrol Manual Sistem</h3>
-
-        <!-- Control Buttons Card -->
-        <div class="card">
-            <div class="card-header">
-                Kontrol Payung
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/"><i class="fas fa-tshirt me-2"></i>Smart Clothesline System</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/"><i class="fas fa-home me-1"></i> Beranda</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/realtime-monitoring"><i class="fas fa-chart-line me-1"></i> Monitoring</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/control"><i class="fas fa-gamepad me-1"></i> Kontrol</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/settings"><i class="fas fa-cog me-1"></i> Pengaturan</a>
+                    </li>
+                </ul>
             </div>
-            <div class="card-body text-center">
-                <div class="row justify-content-center">
-                    <div class="col-auto">
-                        <button class="btn btn-success btn-control" onclick="sendCommand('open')">BUKA</button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container mt-4">
+        <h2 class="mb-4 text-center">Kontrol Jemuran Otomatis</h2>
+        
+        <div class="row">
+            <!-- Control Panel -->
+            <div class="col-lg-6">
+                <div class="card mb-4">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="fas fa-gamepad me-2"></i>Panel Kontrol Jemuran</h5>
                     </div>
-                    <div class="col-auto">
-                        <button class="btn btn-danger btn-control" onclick="sendCommand('close')">TUTUP</button>
+                    <div class="card-body">
+                        <div class="text-center mb-4">
+                            <h6 class="text-muted">Status Jemuran Saat Ini</h6>
+                            <div class="d-flex align-items-center justify-content-center mt-2">
+                                <span class="status-indicator status-unknown" id="status-indicator"></span>
+                                <div class="sensor-value" id="status-value">--</div>
+                            </div>
+                            <div class="mt-2" id="status-desc">Memuat data...</div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-4">
+                                <button class="btn btn-success control-button btn-open" id="open-btn">
+                                    <i class="fas fa-door-open me-2"></i>BUKA
+                                </button>
+                            </div>
+                            <div class="col-md-4">
+                                <button class="btn btn-danger control-button btn-close" id="close-btn">
+                                    <i class="fas fa-door-closed me-2"></i>TUTUP
+                                </button>
+                            </div>
+                            <div class="col-md-4">
+                                <button class="btn btn-secondary control-button btn-stop" id="stop-btn">
+                                    <i class="fas fa-stop-circle me-2"></i>STOP
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info mt-4" id="command-status">
+                            Siap menerima perintah...
+                        </div>
                     </div>
-                    <div class="col-auto">
-                        <button class="btn btn-warning btn-control" onclick="sendCommand('stop')">STOP</button>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0"><i class="fas fa-clock me-2"></i>Status Sensor Terkini</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="text-center">
+                                    <h6><i class="fas fa-sun text-warning me-2"></i>Cahaya</h6>
+                                    <div class="sensor-value" id="ldr-value">--</div>
+                                    <div class="sensor-unit">Unit</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="text-center">
+                                    <h6><i class="fas fa-cloud-rain text-primary me-2"></i>Hujan</h6>
+                                    <div class="sensor-value" id="rain-value">--</div>
+                                    <div class="sensor-unit">Unit</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-center mt-3">
+                            <button class="btn btn-primary" id="refresh-status-btn">
+                                <i class="fas fa-sync-alt me-2"></i>Refresh Status
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-
-        <!-- Sensor Data Card -->
-        <div class="card">
-            <div class="card-header">
-                Data Sensor Real-time
-            </div>
-            <div class="card-body">
-                <div class="row text-center">
-                    <div class="col-md-4 mb-3">
-                        <div class="card">
-                            <div class="card-body">
-                                <h5>Intensitas Cahaya (LDR)</h5>
-                                <div class="sensor-value" id="ldrValue">-</div>
-                                <small>Nilai: 0-4095 (Semakin gelap → nilai semakin besar)</small>
-                            </div>
-                        </div>
+            
+            <!-- Command History and NodeMCU Status -->
+            <div class="col-lg-6">
+                <div class="card mb-4">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="fas fa-history me-2"></i>Riwayat Perintah</h5>
                     </div>
-                    <div class="col-md-4 mb-3">
-                        <div class="card">
-                            <div class="card-body">
-                                <h5>Sensor Hujan</h5>
-                                <div class="sensor-value" id="rainValue">-</div>
-                                <small>Nilai: 0-4095 (Semakin basah → nilai semakin kecil)</small>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col-md-4 mb-3">
-                        <div class="card">
-                            <div class="card-body">
-                                <h5>Status Saat Ini</h5>
-                                <div class="sensor-value" id="currentStatus">-</div>
-                                <small>Terakhir Update: <span id="lastUpdate">-</span></small>
-                            </div>
+                    <div class="card-body command-history" id="command-history">
+                        <div class="text-center text-muted">
+                            <i class="fas fa-info-circle fa-2x mb-2"></i>
+                            <p>Belum ada riwayat perintah</p>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
-
-        <!-- System Status Card -->
-        <div class="card">
-            <div class="card-header">
-                Status Sistem
-            </div>
-            <div class="card-body">
-                <div class="row text-center">
-                    <div class="col-md-4 mb-3">
-                        <h5>Mode Sistem</h5>
-                        <div id="systemMode">-</div>
+                
+                <div class="card">
+                    <div class="card-header bg-secondary text-white">
+                        <h5 class="mb-0"><i class="fas fa-microchip me-2"></i>Status Koneksi NodeMCU</h5>
                     </div>
-                    <div class="col-md-4 mb-3">
-                        <h5>Koneksi NodeMCU</h5>
-                        <div>
-                            <span class="status-indicator" id="connectionStatusIndicator"></span>
-                            <span id="connectionStatusText">-</span>
+                    <div class="card-body text-center">
+                        <div id="nodemcu-status">
+                            <span class="badge bg-warning">Mengecek Koneksi...</span>
                         </div>
-                    </div>
-                    <div class="col-md-4 mb-3">
-                        <h5>Prediksi Cuaca</h5>
-                        <div id="weatherPrediction">-</div>
+                        <div class="mt-3" id="nodemcu-details">
+                            Memeriksa koneksi ke NodeMCU...
+                        </div>
+                        <button class="btn btn-secondary mt-3" id="check-nodemcu-btn">
+                            <i class="fas fa-sync-alt me-2"></i>Cek Koneksi
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     <script>
-        let refreshInterval;
-
-        // Initialize real-time updates
-        document.addEventListener('DOMContentLoaded', function() {
-            refreshInterval = setInterval(updateSensorData, 2000);
-            checkConnection();
-        });
-
-        // Update sensor data
-        function updateSensorData() {
-            fetch('/get-data')
-                .then(response => response.json())
-                .then(data => {
-                    document.getElementById('ldrValue').textContent = data.ldr || '-';
-                    document.getElementById('rainValue').textContent = data.rain || '-';
-                    document.getElementById('currentStatus').textContent = data.status || '-';
-                    document.getElementById('lastUpdate').textContent = data.timestamp || '-';
-                })
-                .catch(error => {
-                    console.error('Error fetching data:', error);
-                });
-
-            fetch('/predict-weather')
-                .then(response => response.json())
-                .then(data => {
-                    if(data.error) {
-                        document.getElementById('weatherPrediction').textContent = 'Tidak tersedia';
-                    } else {
-                        const prediction = data.will_rain ? 
-                            `Akan hujan (${(data.probability * 100).toFixed(1)}%)` : 
-                            `Tidak hujan (${(data.probability * 100).toFixed(1)}%)`;
-                        document.getElementById('weatherPrediction').textContent = prediction;
+        $(document).ready(function() {
+            // Variabel untuk menyimpan riwayat perintah
+            let commandHistory = [];
+            
+            // Ambil status awal
+            fetchStatus();
+            checkNodeMCUConnection();
+            
+            // Event untuk tombol kontrol
+            $('#open-btn').click(function() {
+                sendCommand('open');
+            });
+            
+            $('#close-btn').click(function() {
+                sendCommand('close');
+            });
+            
+            $('#stop-btn').click(function() {
+                sendCommand('stop');
+            });
+            
+            // Refresh status button
+            $('#refresh-status-btn').click(function() {
+                fetchStatus();
+                animateButton($(this));
+            });
+            
+            // Check NodeMCU connection button
+            $('#check-nodemcu-btn').click(function() {
+                checkNodeMCUConnection();
+                animateButton($(this));
+            });
+            
+            // Fungsi untuk mengambil status terkini
+            function fetchStatus() {
+                $.ajax({
+                    url: '/get_data',
+                    type: 'GET',
+                    dataType: 'json',
+                    success: function(data) {
+                        updateStatusUI(data);
+                    },
+                    error: function(xhr, status, error) {
+                        console.error("Error fetching status:", error);
+                        $('#command-status').removeClass('alert-info').addClass('alert-danger')
+                            .html('<i class="fas fa-exclamation-triangle me-2"></i>Gagal memuat data status');
                     }
                 });
-        }
-
-        // Send control command
-        function sendCommand(command) {
-            fetch('/send_command', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ command: command })
-            })
-            .then(response => response.json())
-            .then(result => {
-                alert(result.message);
-            })
-            .catch(error => {
-                alert('Gagal mengirim perintah: ' + error.message);
-            });
-        }
-
-        // Check NodeMCU connection
-        function checkConnection() {
-            fetch('/check-nodemcu')
-                .then(response => response.json())
-                .then(data => {
-                    const indicator = document.getElementById('connectionStatusIndicator');
-                    indicator.className = data.status === 'connected' ? 
-                        'status-indicator status-connected' : 
-                        'status-indicator status-disconnected';
-                    document.getElementById('connectionStatusText').textContent = 
-                        data.status === 'connected' ? 'Terhubung' : 'Tidak Terhubung';
+            }
+            
+            // Fungsi untuk mengecek koneksi NodeMCU
+            function checkNodeMCUConnection() {
+                $('#nodemcu-status').html('<span class="badge bg-warning">Mengecek Koneksi...</span>');
+                $('#nodemcu-details').text('Sedang memeriksa koneksi ke NodeMCU...');
+                
+                $.ajax({
+                    url: '/check-nodemcu',
+                    type: 'GET',
+                    dataType: 'json',
+                    success: function(data) {
+                        if (data.status === 'success') {
+                            $('#nodemcu-status').html('<span class="badge bg-success">Terhubung</span>');
+                            $('#nodemcu-details').text('NodeMCU terhubung dan berfungsi dengan baik');
+                        } else if (data.status === 'partial') {
+                            $('#nodemcu-status').html('<span class="badge bg-warning">Mode Fallback</span>');
+                            $('#nodemcu-details').text('Menggunakan data fallback untuk deployment di Render');
+                        } else {
+                            $('#nodemcu-status').html('<span class="badge bg-danger">Gagal Terhubung</span>');
+                            $('#nodemcu-details').text('Tidak dapat terhubung ke NodeMCU: ' + data.message);
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        $('#nodemcu-status').html('<span class="badge bg-danger">Error</span>');
+                        $('#nodemcu-details').text('Terjadi kesalahan saat memeriksa koneksi NodeMCU');
+                        console.error("Error checking NodeMCU:", error);
+                    }
                 });
-        }
-
-        // Check system mode
-        function checkSystemMode() {
-            fetch('/get-auto-settings')
-                .then(response => response.json())
-                .then(data => {
-                    document.getElementById('systemMode').textContent = 
-                        data.enabled ? 'Mode Otomatis' : 'Mode Manual';
+            }
+            
+            // Fungsi untuk mengirim perintah
+            function sendCommand(command) {
+                // Nonaktifkan tombol sementara
+                $('.control-button').prop('disabled', true);
+                
+                // Update status
+                $('#command-status').removeClass('alert-info alert-success alert-danger')
+                    .addClass('alert-warning')
+                    .html('<i class="fas fa-spinner fa-spin me-2"></i>Mengirim perintah ' + command + '...');
+                
+                $.ajax({
+                    url: '/send_command',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({ command: command }),
+                    dataType: 'json',
+                    success: function(response) {
+                        // Aktifkan tombol kembali
+                        $('.control-button').prop('disabled', false);
+                        
+                        // Update status
+                        $('#command-status').removeClass('alert-warning alert-danger')
+                            .addClass('alert-success')
+                            .html('<i class="fas fa-check-circle me-2"></i>' + response.message);
+                        
+                        // Tambahkan ke riwayat
+                        addToCommandHistory(command, true, response.message);
+                        
+                        // Refresh status setelah mengirim perintah
+                        setTimeout(fetchStatus, 1000);
+                    },
+                    error: function(xhr, status, error) {
+                        // Aktifkan tombol kembali
+                        $('.control-button').prop('disabled', false);
+                        
+                        // Update status
+                        let errorMsg = "Terjadi kesalahan";
+                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                            errorMsg = xhr.responseJSON.message;
+                        }
+                        
+                        $('#command-status').removeClass('alert-warning alert-info')
+                            .addClass('alert-danger')
+                            .html('<i class="fas fa-exclamation-triangle me-2"></i>' + errorMsg);
+                        
+                        // Tambahkan ke riwayat
+                        addToCommandHistory(command, false, errorMsg);
+                        
+                        console.error("Error sending command:", error);
+                    }
                 });
-        }
-
-        // Initial checks
-        checkSystemMode();
-        setInterval(checkConnection, 5000);
-        setInterval(checkSystemMode, 3000);
+            }
+            
+            // Fungsi untuk menambahkan ke riwayat perintah
+            function addToCommandHistory(command, success, message) {
+                const now = new Date();
+                const timeString = 
+                    `${now.getHours().toString().padStart(2, '0')}:` +
+                    `${now.getMinutes().toString().padStart(2, '0')}:` +
+                    `${now.getSeconds().toString().padStart(2, '0')}`;
+                
+                let commandText;
+                switch(command) {
+                    case 'open': commandText = 'BUKA'; break;
+                    case 'close': commandText = 'TUTUP'; break;
+                    case 'stop': commandText = 'STOP'; break;
+                    default: commandText = command;
+                }
+                
+                const statusClass = success ? 'text-success' : 'text-danger';
+                const statusIcon = success ? 'check-circle' : 'exclamation-triangle';
+                
+                const historyItem = 
+                    `<div class="alert ${success ? 'alert-success' : 'alert-danger'} mb-2">
+                        <div class="d-flex justify-content-between">
+                            <strong><i class="fas fa-terminal me-2"></i>${commandText}</strong>
+                            <small>${timeString}</small>
+                        </div>
+                        <div class="mt-1">
+                            <i class="fas fa-${statusIcon} me-1 ${statusClass}"></i>
+                            ${message}
+                        </div>
+                    </div>`;
+                
+                // Tambahkan ke awal riwayat
+                commandHistory.unshift({
+                    command: commandText,
+                    success: success,
+                    message: message,
+                    time: timeString
+                });
+                
+                // Batasi riwayat menjadi 10 item
+                if (commandHistory.length > 10) {
+                    commandHistory.pop();
+                }
+                
+                // Update tampilan riwayat
+                updateCommandHistoryUI();
+            }
+            
+            // Fungsi untuk memperbarui tampilan riwayat perintah
+            function updateCommandHistoryUI() {
+                if (commandHistory.length === 0) {
+                    $('#command-history').html(
+                        `<div class="text-center text-muted">
+                            <i class="fas fa-info-circle fa-2x mb-2"></i>
+                            <p>Belum ada riwayat perintah</p>
+                        </div>`
+                    );
+                    return;
+                }
+                
+                let html = '';
+                commandHistory.forEach(item => {
+                    const statusClass = item.success ? 'text-success' : 'text-danger';
+                    const statusIcon = item.success ? 'check-circle' : 'exclamation-triangle';
+                    
+                    html += 
+                        `<div class="alert ${item.success ? 'alert-success' : 'alert-danger'} mb-2">
+                            <div class="d-flex justify-content-between">
+                                <strong><i class="fas fa-terminal me-2"></i>${item.command}</strong>
+                                <small>${item.time}</small>
+                            </div>
+                            <div class="mt-1">
+                                <i class="fas fa-${statusIcon} me-1 ${statusClass}"></i>
+                                ${item.message}
+                            </div>
+                        </div>`;
+                });
+                
+                $('#command-history').html(html);
+            }
+            
+            // Fungsi untuk memperbarui tampilan status
+            function updateStatusUI(data) {
+                // Update Light Sensor
+                $('#ldr-value').text(data.ldr || '--');
+                
+                // Update Rain Sensor
+                $('#rain-value').text(data.rain || '--');
+                
+                // Update Status
+                const status = data.status || 'UNKNOWN';
+                $('#status-value').text(status);
+                
+                if (status === 'TERBUKA') {
+                    $('#status-indicator').removeClass('status-closed status-unknown').addClass('status-open');
+                    $('#status-desc').text('Jemuran sedang dalam keadaan terbuka/keluar');
+                } else if (status === 'TERTUTUP') {
+                    $('#status-indicator').removeClass('status-open status-unknown').addClass('status-closed');
+                    $('#status-desc').text('Jemuran sedang dalam keadaan tertutup/masuk');
+                } else {
+                    $('#status-indicator').removeClass('status-open status-closed').addClass('status-unknown');
+                    $('#status-desc').text('Status tidak diketahui');
+                }
+            }
+            
+            // Fungsi untuk animasi tombol
+            function animateButton(button) {
+                const icon = button.find('i');
+                icon.addClass('fa-spin');
+                button.prop('disabled', true);
+                
+                setTimeout(() => {
+                    icon.removeClass('fa-spin');
+                    button.prop('disabled', false);
+                }, 1000);
+            }
+            
+            // Set interval untuk refresh otomatis status
+            setInterval(fetchStatus, 10000); // Refresh setiap 10 detik
+        });
     </script>
 </body>
 </html>

@@ -1,213 +1,507 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pengaturan Sistem</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>Pengaturan - Smart Clothesline System</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body {
             background-color: #f8f9fa;
-            padding: 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .navbar-brand {
+            font-weight: bold;
         }
         .card {
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             margin-bottom: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-5px);
         }
         .card-header {
-            background-color: #007bff;
+            background-color: #f8f9fa;
+            border-bottom: none;
+            font-weight: bold;
+        }
+        .form-switch .form-check-input {
+            width: 3em;
+            height: 1.5em;
+        }
+        .model-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
         }
-        .status-indicator {
-            width: 15px;
-            height: 15px;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 5px;
+        .model-value {
+            font-size: 1.8rem;
+            font-weight: bold;
         }
-        .status-connected {
-            background-color: #28a745;
+        .btn-save {
+            background: linear-gradient(135deg, #20bf55 0%, #01baef 100%);
+            border: none;
+            color: white;
+            font-weight: bold;
         }
-        .status-disconnected {
-            background-color: #dc3545;
+        .btn-test {
+            background: linear-gradient(135deg, #f83600 0%, #fee140 100%);
+            border: none;
+            color: white;
+            font-weight: bold;
+        }
+        #toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h3 class="mb-4">Pengaturan Sistem</h3>
-
-        <!-- NodeMCU Configuration Card -->
-        <div class="card">
-            <div class="card-header">
-                Konfigurasi NodeMCU
-            </div>
-            <div class="card-body">
-                <form id="nodemcuConfigForm">
-                    <div class="mb-3">
-                        <label class="form-label">Base URL</label>
-                        <input type="url" class="form-control" id="baseUrl" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Timeout (detik)</label>
-                        <input type="number" class="form-control" id="timeout" step="0.1" min="1" max="10" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary">Simpan Konfigurasi</button>
-                </form>
-            </div>
-        </div>
-
-        <!-- Auto Mode Settings Card -->
-        <div class="card">
-            <div class="card-header">
-                Pengaturan Mode Otomatis
-            </div>
-            <div class="card-body">
-                <form id="autoSettingsForm">
-                    <div class="mb-3 form-check">
-                        <input type="checkbox" class="form-check-input" id="autoEnabled">
-                        <label class="form-check-label">Aktifkan Mode Otomatis</label>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Ambang Cahaya (LDR)</label>
-                        <input type="number" class="form-control" id="lightThreshold" min="0" max="4095" required>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Ambang Hujan</label>
-                        <input type="number" class="form-control" id="rainThreshold" min="0" max="4095" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary">Simpan Pengaturan</button>
-                </form>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/"><i class="fas fa-tshirt me-2"></i>Smart Clothesline System</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/"><i class="fas fa-home me-1"></i> Beranda</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/realtime-monitoring"><i class="fas fa-chart-line me-1"></i> Monitoring</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/control"><i class="fas fa-gamepad me-1"></i> Kontrol</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/settings"><i class="fas fa-cog me-1"></i> Pengaturan</a>
+                    </li>
+                </ul>
             </div>
         </div>
+    </nav>
 
-        <!-- Model Training Section -->
-        <div class="card">
-            <div class="card-header">
-                Pelatihan Model
+    <!-- Toast Container for Notifications -->
+    <div id="toast-container"></div>
+
+    <!-- Main Content -->
+    <div class="container mt-4">
+        <h2 class="mb-4 text-center">Pengaturan Sistem Jemuran Otomatis</h2>
+        
+        <div class="row">
+            <!-- Settings Column -->
+            <div class="col-md-8">
+                <!-- NodeMCU Settings Card -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="fas fa-microchip text-primary me-2"></i>Pengaturan NodeMCU
+                    </div>
+                    <div class="card-body">
+                        <form id="nodemcu-form">
+                            <div class="mb-3">
+                                <label for="base_url" class="form-label">URL NodeMCU:</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-link"></i></span>
+                                    <input type="text" class="form-control" id="base_url" placeholder="Contoh: http://192.168.1.100">
+                                </div>
+                                <div class="form-text">Masukkan alamat IP NodeMCU dengan format lengkap (termasuk http://)</div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="timeout" class="form-label">Timeout (detik):</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-clock"></i></span>
+                                    <input type="number" class="form-control" id="timeout" placeholder="5" min="1" max="30">
+                                </div>
+                                <div class="form-text">Waktu maksimal menunggu respon dari NodeMCU</div>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <button type="submit" class="btn btn-save">
+                                    <i class="fas fa-save me-2"></i>Simpan Pengaturan
+                                </button>
+                                <button type="button" class="btn btn-test" id="test-connection">
+                                    <i class="fas fa-plug me-2"></i>Tes Koneksi
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Auto Mode Settings -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="fas fa-robot text-success me-2"></i>Mode Otomatis
+                    </div>
+                    <div class="card-body">
+                        <form id="auto-form">
+                            <div class="form-check form-switch mb-4">
+                                <input class="form-check-input" type="checkbox" id="auto-enabled">
+                                <label class="form-check-label" for="auto-enabled">Aktifkan Mode Otomatis</label>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="light-threshold" class="form-label">Ambang Batas Cahaya:</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-sun"></i></span>
+                                    <input type="range" class="form-range form-control" id="light-threshold" min="0" max="1023" step="1">
+                                    <span class="input-group-text" id="light-value">500</span>
+                                </div>
+                                <div class="form-text">Nilai rendah = kondisi gelap, nilai tinggi = kondisi terang</div>
+                            </div>
+                            
+                            <div class="mb-4">
+                                <label for="rain-threshold" class="form-label">Ambang Batas Hujan:</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-cloud-rain"></i></span>
+                                    <input type="range" class="form-range form-control" id="rain-threshold" min="0" max="1023" step="1">
+                                    <span class="input-group-text" id="rain-value">500</span>
+                                </div>
+                                <div class="form-text">Nilai rendah = tidak hujan, nilai tinggi = hujan deras</div>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-save">
+                                <i class="fas fa-save me-2"></i>Simpan Mode Otomatis
+                            </button>
+                        </form>
+                    </div>
+                </div>
             </div>
-            <div class="card-body">
-                <div class="mb-3">
-                    <p>Status Model: 
-                        <span class="status-indicator" id="modelStatusIndicator"></span>
-                        <span id="modelStatusText">Mengambil status...</span>
-                    </p>
-                    <p>Data yang tersedia: <span id="dataCount">-</span> records</p>
-                    <button class="btn btn-warning" onclick="forceTrainModel()">Latih Ulang Model</button>
+            
+            <!-- Status & Model Column -->
+            <div class="col-md-4">
+                <!-- Connection Status Card -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="fas fa-wifi text-info me-2"></i>Status Koneksi
+                    </div>
+                    <div class="card-body text-center">
+                        <div class="mb-3" id="connection-status">
+                            <span class="badge bg-secondary">Belum Diperiksa</span>
+                        </div>
+                        <div id="connection-message">Klik tombol "Tes Koneksi" untuk memeriksa</div>
+                    </div>
+                </div>
+                
+                <!-- ML Model Card -->
+                <div class="card model-card mb-4">
+                    <div class="card-header bg-transparent text-white">
+                        <i class="fas fa-brain me-2"></i>Model Machine Learning
+                    </div>
+                    <div class="card-body text-center">
+                        <div class="mb-3" id="model-status">
+                            <span class="badge bg-secondary">Memeriksa...</span>
+                        </div>
+                        <div id="model-info" class="mb-3">Mengambil informasi model...</div>
+                        <div id="data-count" class="mb-2">Data yang tersedia: --</div>
+                        <button class="btn btn-light mt-2" id="train-model">
+                            <i class="fas fa-dumbbell me-2"></i>Latih Model
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- System Info Card -->
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <i class="fas fa-info-circle text-warning me-2"></i>Informasi Sistem
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Mode Otomatis
+                                <span class="badge bg-primary" id="auto-mode-badge">Tidak Aktif</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Status Model
+                                <span class="badge bg-primary" id="model-trained-badge">Belum Dilatih</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Status NodeMCU
+                                <span class="badge bg-primary" id="nodemcu-status-badge">Tidak Terhubung</span>
+                            </li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>
-
-        <!-- Connection Status -->
-        <div class="alert alert-info" role="alert">
-            Status Koneksi NodeMCU: <span id="connectionStatus">Mengecek...</span>
-        </div>
     </div>
 
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Load settings when page loads
-        document.addEventListener('DOMContentLoaded', function() {
-            loadConfig();
+        $(document).ready(function() {
+            // Initialize settings page
+            loadNodeMCUConfig();
             loadAutoSettings();
-            checkConnection();
             checkModelStatus();
-        });
-
-        // Handle NodeMCU Config Form
-        document.getElementById('nodemcuConfigForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            saveConfig({
-                base_url: document.getElementById('baseUrl').value,
-                timeout: parseFloat(document.getElementById('timeout').value)
+            checkDataCount();
+            
+            // Range slider value display
+            $('#light-threshold').on('input', function() {
+                $('#light-value').text($(this).val());
             });
-        });
-
-        // Handle Auto Settings Form
-        document.getElementById('autoSettingsForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            saveAutoSettings({
-                enabled: document.getElementById('autoEnabled').checked,
-                lightThreshold: parseInt(document.getElementById('lightThreshold').value),
-                rainThreshold: parseInt(document.getElementById('rainThreshold').value)
+            
+            $('#rain-threshold').on('input', function() {
+                $('#rain-value').text($(this).val());
             });
-        });
-
-        function loadConfig() {
-            fetch('/get-config')
-                .then(response => response.json())
-                .then(data => {
-                    document.getElementById('baseUrl').value = data.base_url;
-                    document.getElementById('timeout').value = data.timeout;
-                });
-        }
-
-        function saveConfig(config) {
-            fetch('/save-config', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(config)
-            })
-            .then(response => response.json())
-            .then(result => {
-                alert(result.message);
+            
+            // NodeMCU form submission
+            $('#nodemcu-form').submit(function(e) {
+                e.preventDefault();
+                
+                const config = {
+                    base_url: $('#base_url').val(),
+                    timeout: $('#timeout').val()
+                };
+                
+                saveNodeMCUConfig(config);
             });
-        }
-
-        function loadAutoSettings() {
-            fetch('/get-auto-settings')
-                .then(response => response.json())
-                .then(data => {
-                    document.getElementById('autoEnabled').checked = data.enabled;
-                    document.getElementById('lightThreshold').value = data.lightThreshold;
-                    document.getElementById('rainThreshold').value = data.rainThreshold;
-                });
-        }
-
-        function saveAutoSettings(settings) {
-            fetch('/save-auto-settings', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(settings)
-            })
-            .then(response => response.json())
-            .then(result => {
-                alert(result.message);
+            
+            // Auto mode form submission
+            $('#auto-form').submit(function(e) {
+                e.preventDefault();
+                
+                const settings = {
+                    enabled: $('#auto-enabled').is(':checked'),
+                    lightThreshold: parseInt($('#light-threshold').val()),
+                    rainThreshold: parseInt($('#rain-threshold').val())
+                };
+                
+                saveAutoSettings(settings);
             });
-        }
-
-        function checkConnection() {
-            fetch('/check-nodemcu')
-                .then(response => response.json())
-                .then(data => {
-                    document.getElementById('connectionStatus').textContent = data.message;
-                });
-        }
-
-        function checkModelStatus() {
-            fetch('/check-model-status')
-                .then(response => response.json())
-                .then(data => {
-                    const indicator = document.getElementById('modelStatusIndicator');
-                    indicator.className = `status-indicator ${data.model_trained_flag ? 'status-connected' : 'status-disconnected'}`;
-                    document.getElementById('modelStatusText').textContent = 
-                        data.model_trained_flag ? 'Model Terlatih' : 'Model Belum Terlatih';
-                    document.getElementById('dataCount').textContent = 
-                        data.enough_data ? 'Cukup' : 'Tidak Cukup';
-                });
-        }
-
-        function forceTrainModel() {
-            fetch('/force-train-model')
-                .then(response => response.json())
-                .then(result => {
-                    if(result.status === 'success') {
-                        alert('Model berhasil dilatih ulang! Akurasi: ' + result.accuracy);
-                        checkModelStatus();
-                    } else {
-                        alert('Error: ' + result.message);
+            
+            // Test connection button
+            $('#test-connection').click(function() {
+                testNodeMCUConnection();
+            });
+            
+            // Train model button
+            $('#train-model').click(function() {
+                trainModel();
+            });
+            
+            // Function to load NodeMCU config
+            function loadNodeMCUConfig() {
+                $.ajax({
+                    url: '/get-config',
+                    type: 'GET',
+                    dataType: 'json',
+                    success: function(data) {
+                        $('#base_url').val(data.base_url || '');
+                        $('#timeout').val(data.timeout || 5);
+                    },
+                    error: function(xhr, status, error) {
+                        showToast('Error', 'Gagal memuat konfigurasi NodeMCU: ' + error, 'danger');
                     }
                 });
-        }
+            }
+            
+            // Function to save NodeMCU config
+            function saveNodeMCUConfig(config) {
+                $.ajax({
+                    url: '/save-config',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(config),
+                    success: function(response) {
+                        showToast('Sukses', 'Konfigurasi NodeMCU berhasil disimpan', 'success');
+                    },
+                    error: function(xhr, status, error) {
+                        showToast('Error', 'Gagal menyimpan konfigurasi: ' + error, 'danger');
+                    }
+                });
+            }
+            
+            // Function to load auto settings
+            function loadAutoSettings() {
+                $.ajax({
+                    url: '/get-auto-settings',
+                    type: 'GET',
+                    dataType: 'json',
+                    success: function(data) {
+                        $('#auto-enabled').prop('checked', data.enabled || false);
+                        $('#light-threshold').val(data.lightThreshold || 500);
+                        $('#light-value').text(data.lightThreshold || 500);
+                        $('#rain-threshold').val(data.rainThreshold || 500);
+                        $('#rain-value').text(data.rainThreshold || 500);
+                        
+                        // Update status badge
+                        $('#auto-mode-badge').text(data.enabled ? 'Aktif' : 'Tidak Aktif');
+                        $('#auto-mode-badge').removeClass('bg-primary').addClass(data.enabled ? 'bg-success' : 'bg-danger');
+                    },
+                    error: function(xhr, status, error) {
+                        showToast('Error', 'Gagal memuat pengaturan otomatis: ' + error, 'danger');
+                    }
+                });
+            }
+            
+            // Function to save auto settings
+            function saveAutoSettings(settings) {
+                $.ajax({
+                    url: '/save-auto-settings',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(settings),
+                    success: function(response) {
+                        showToast('Sukses', 'Pengaturan mode otomatis berhasil disimpan', 'success');
+                        
+                        // Update status badge
+                        $('#auto-mode-badge').text(settings.enabled ? 'Aktif' : 'Tidak Aktif');
+                        $('#auto-mode-badge').removeClass('bg-primary').addClass(settings.enabled ? 'bg-success' : 'bg-danger');
+                    },
+                    error: function(xhr, status, error) {
+                        showToast('Error', 'Gagal menyimpan pengaturan: ' + error, 'danger');
+                    }
+                });
+            }
+            
+            // Function to test NodeMCU connection
+            function testNodeMCUConnection() {
+                $('#connection-status').html('<span class="spinner-border spinner-border-sm text-primary" role="status"></span> <span>Menguji koneksi...</span>');
+                $('#connection-message').text('Sedang memeriksa koneksi ke NodeMCU...');
+                
+                $.ajax({
+                    url: '/check-nodemcu',
+                    type: 'GET',
+                    dataType: 'json',
+                    success: function(data) {
+                        if (data.status === 'connected') {
+                            $('#connection-status').html('<span class="badge bg-success">Terhubung</span>');
+                            $('#connection-message').text(data.message);
+                            $('#nodemcu-status-badge').text('Terhubung').removeClass('bg-primary bg-danger').addClass('bg-success');
+                        } else if (data.status === 'partial') {
+                            $('#connection-status').html('<span class="badge bg-warning">Koneksi Parsial</span>');
+                            $('#connection-message').text(data.message);
+                            $('#nodemcu-status-badge').text('Parsial').removeClass('bg-primary bg-success').addClass('bg-warning');
+                        } else {
+                            $('#connection-status').html('<span class="badge bg-danger">Tidak Terhubung</span>');
+                            $('#connection-message').text(data.message);
+                            $('#nodemcu-status-badge').text('Tidak Terhubung').removeClass('bg-primary bg-success').addClass('bg-danger');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        $('#connection-status').html('<span class="badge bg-danger">Error</span>');
+                        $('#connection-message').text('Gagal memeriksa koneksi: ' + error);
+                        $('#nodemcu-status-badge').text('Error').removeClass('bg-primary bg-success').addClass('bg-danger');
+                    }
+                });
+            }
+            
+            // Function to check model status
+            function checkModelStatus() {
+                $.ajax({
+                    url: '/get-model-info',
+                    type: 'GET',
+                    dataType: 'json',
+                    success: function(data) {
+                        if (data.trained) {
+                            $('#model-status').html('<span class="badge bg-success">Model Siap</span>');
+                            $('#model-info').html(`Model terlatih dengan akurasi: <strong>${(data.accuracy * 100).toFixed(2)}%</strong>`);
+                            $('#model-trained-badge').text('Terlatih').removeClass('bg-primary bg-danger').addClass('bg-success');
+                        } else {
+                            $('#model-status').html('<span class="badge bg-warning">Belum Dilatih</span>');
+                            $('#model-info').text('Model prediksi belum dilatih');
+                            $('#model-trained-badge').text('Belum Dilatih').removeClass('bg-primary bg-success').addClass('bg-warning');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        $('#model-status').html('<span class="badge bg-danger">Error</span>');
+                        $('#model-info').text('Gagal mendapatkan informasi model');
+                        $('#model-trained-badge').text('Error').removeClass('bg-primary bg-success').addClass('bg-danger');
+                    }
+                });
+            }
+            
+            // Function to check data count
+            function checkDataCount() {
+                $.ajax({
+                    url: '/check-data-count',
+                    type: 'GET',
+                    dataType: 'json',
+                    success: function(data) {
+                        $('#data-count').text(`Data yang tersedia: ${data.count} baris`);
+                        
+                        // Disable train button if not enough data
+                        if (data.count < 20) {
+                            $('#train-model').prop('disabled', true);
+                            $('#train-model').attr('title', 'Minimum 20 data diperlukan untuk melatih model');
+                        } else {
+                            $('#train-model').prop('disabled', false);
+                            $('#train-model').attr('title', '');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        $('#data-count').text('Gagal mengambil jumlah data');
+                    }
+                });
+            }
+            
+            // Function to train model
+            function trainModel() {
+                $('#train-model').prop('disabled', true);
+                $('#model-status').html('<span class="spinner-border spinner-border-sm text-light" role="status"></span> <span>Melatih model...</span>');
+                $('#model-info').text('Proses pelatihan sedang berlangsung...');
+                
+                $.ajax({
+                    url: '/train-model',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({}),
+                    success: function(data) {
+                        $('#model-status').html('<span class="badge bg-success">Model Siap</span>');
+                        $('#model-info').html(`Model berhasil dilatih dengan akurasi: <strong>${(data.accuracy * 100).toFixed(2)}%</strong>`);
+                        $('#model-trained-badge').text('Terlatih').removeClass('bg-primary bg-warning').addClass('bg-success');
+                        showToast('Sukses', 'Model berhasil dilatih', 'success');
+                        $('#train-model').prop('disabled', false);
+                    },
+                    error: function(xhr, status, error) {
+                        let errorMsg = 'Gagal melatih model';
+                        
+                        try {
+                            const response = JSON.parse(xhr.responseText);
+                            if (response.error) {
+                                errorMsg = response.error;
+                            }
+                        } catch(e) {
+                            // Just use the generic error message
+                        }
+                        
+                        $('#model-status').html('<span class="badge bg-danger">Error</span>');
+                        $('#model-info').text(errorMsg);
+                        showToast('Error', errorMsg, 'danger');
+                        $('#train-model').prop('disabled', false);
+                    }
+                });
+            }
+            
+            // Function to show toast notifications
+            function showToast(title, message, type) {
+                const toastId = 'toast-' + Date.now();
+                const toast = `
+                    <div class="toast show" role="alert" aria-live="assertive" aria-atomic="true" id="${toastId}">
+                        <div class="toast-header bg-${type} text-white">
+                            <strong class="me-auto">${title}</strong>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+                        </div>
+                        <div class="toast-body">
+                            ${message}
+                        </div>
+                    </div>
+                `;
+                
+                $('#toast-container').append(toast);
+                
+                // Auto hide after 5 seconds
+                setTimeout(() => {
+                    $(`#${toastId}`).remove();
+                }, 5000);
+            }
+        });
     </script>
 </body>
 </html>
