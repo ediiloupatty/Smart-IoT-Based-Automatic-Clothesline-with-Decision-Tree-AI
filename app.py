@@ -318,6 +318,21 @@ def check_nodemcu():
         response = app.make_default_options_response()
         return response
         
+    # Validasi URL sebelum mencoba menghubungi NodeMCU
+    if config.NODEMCU_CONFIG['base_url']:
+        if not config.NODEMCU_CONFIG['base_url'].startswith(('http://', 'https://')):
+            config.NODEMCU_CONFIG['base_url'] = 'https://' + config.NODEMCU_CONFIG['base_url']
+            config.save_setting('nodemcu_base_url', config.NODEMCU_CONFIG['base_url'])
+            
+    # Jika deployment di Render, sesuaikan handling fallback
+    if 'onrender.com' in request.host:
+        # Gunakan penanganan khusus untuk deployment Render
+        print("Terdeteksi deployment di Render - menggunakan mode fallback")
+        return jsonify({
+            "status": "partial", 
+            "message": "Menggunakan data fallback untuk deployment di Render"
+        }), 200
+            
     from utils.nodemcu_manager import check_nodemcu_connection
     result, status_code = check_nodemcu_connection()
     return jsonify(result), status_code
