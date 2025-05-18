@@ -53,27 +53,65 @@ def nodemcu_reader():
     from utils.database import save_sensor_data
     
     print("Starting NodeMCU reader thread")
+    last_success_time = time.time()
     
     while config.threads_running:
         try:
-            # Get data from NodeMCU
-            data = get_nodemcu_data()
-            
-            # If data was retrieved successfully
-            if data and isinstance(data, dict):
-                print(f"Data from NodeMCU: {data}")
+            # Check if running on Render
+            if 'RENDER' in os.environ:
+                # In Render environment, use simulated data instead of actual NodeMCU polling
+                if time.time() - last_success_time > 30:  # Only log every 30 seconds
+                    print("Running in Render environment - using simulated data")
+                    last_success_time = time.time()
                 
-                # Save data to database - PERBAIKAN DISINI
-                # Memastikan semua parameter yang diperlukan disediakan
-                save_sensor_data(
-                    data.get('ldr', 0),
-                    data.get('rain', 0),
-                    data.get('status', 'UNKNOWN'),
-                    data.get('rotation', 0)
-                )
+                # Generate simulated data
+                import random
+                simulated_data = {
+                    'ldr': random.randint(200, 300),
+                    'rain': random.randint(1000, 1020),
+                    'status': 'TERTUTUP',
+                    'rotation': 0,
+                    'device_id': '3d49db'
+                }
+                
+                # Save simulated data to database with proper connection handling
+                conn = None
+                try:
+                    conn = sqlite3.connect(config.DATABASE, timeout=30)
+                    conn.execute("PRAGMA busy_timeout = 5000")  # Set busy timeout
+                    conn.execute('''
+                        INSERT INTO sensor_data (timestamp, ldr, rain, status, rotation)
+                        VALUES (?, ?, ?, ?, ?)
+                    ''', (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), 
+                          simulated_data['ldr'], 
+                          simulated_data['rain'], 
+                          simulated_data['status'], 
+                          simulated_data['rotation']))
+                    conn.commit()
+                    print("Saved simulated data to database")
+                except Exception as db_err:
+                    print(f"Database error: {db_err}")
+                finally:
+                    if conn:
+                        conn.close()
             else:
-                print("No data received from NodeMCU or data format invalid")
+                # Standard NodeMCU polling for non-Render environments
+                data = get_nodemcu_data()
                 
+                # If data was retrieved successfully
+                if data and isinstance(data, dict):
+                    print(f"Data from NodeMCU: {data}")
+                    
+                    # Save data to database
+                    save_sensor_data(
+                        data.get('ldr', 0),
+                        data.get('rain', 0),
+                        data.get('status', 'UNKNOWN'),
+                        data.get('rotation', 0)
+                    )
+                else:
+                    print("No data received from NodeMCU or data format invalid")
+            
             # Check auto mode and send commands if needed
             if config.AUTO_SETTINGS['enabled']:
                 check_auto_conditions()
@@ -123,12 +161,39 @@ def api_data():
 
 @app.route('/get_data')
 def get_data():
-    """Endpoint lama untuk mendapatkan data terbaru"""
-    data = get_latest_data()
-    if data:
-        print(f"Data dari database: {data}")
-        return jsonify(data)
-    return jsonify({})
+    """Endpoint lama untuk mendapatkan data terbaru dengan penanganan error yang lebih baik"""
+    try:
+        # Cek apakah kita di Render
+        if 'onrender.com' in request.host:
+            # Cek dari database dulu
+            data = get_latest_data()
+            if data and isinstance(data, dict) and data.get('ldr') is not None:
+                return jsonify(data)
+            
+            # Jika tidak ada data database, berikan data simulasi
+            simulated_data = {
+                'ldr': 250,
+                'rain': 1010,
+                'status': 'TERTUTUP',
+                'rotation': 0,
+                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            }
+            return jsonify(simulated_data)
+        
+        # Jika bukan di Render, ambil data dari database seperti biasa
+        data = get_latest_data()
+        if data:
+            return jsonify(data)
+        return jsonify({})
+    except Exception as e:
+        print(f"Error in get_data endpoint: {str(e)}")
+        # Fallback ke data simulasi jika error
+        return jsonify({
+            'ldr': 250,
+            'rain': 1010,
+            'status': 'TERTUTUP',
+            'rotation': 0
+        })
 
 @app.route('/check-data-count')
 def check_data_count():
