@@ -1,1211 +1,213 @@
 <!DOCTYPE html>
-<html lang="id" data-theme="light">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>System Settings | Smart Clothesline System</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <title>Pengaturan Sistem</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        :root {
-            --primary-color: #0077cc;
-            --secondary-color: #005fa3;
-            --bg-color: #f5f8fa;
-            --card-bg: #ffffff;
-            --text-color: #333333;
-            --border-color: #e1e8ed;
-            --success-color: #28a745;
-            --warning-color: #ffc107;
-            --danger-color: #dc3545;
-            --header-bg: #0077cc;
-            --header-text: #ffffff;
-        }
-
-        [data-theme="dark"] {
-            --primary-color: #1a91ff;
-            --secondary-color: #0084ff;
-            --bg-color: #15202b;
-            --card-bg: #192734;
-            --text-color: #ffffff;
-            --border-color: #38444d;
-            --success-color: #28a745;
-            --warning-color: #ffc107;
-            --danger-color: #dc3545;
-            --header-bg: #1a91ff;
-            --header-text: #ffffff;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            transition: all 0.3s ease;
+            background-color: #f8f9fa;
+            padding: 20px;
         }
-
-        #main-header {
-            background-color: var(--header-bg);
-            color: var(--header-text);
-            padding: 1rem 0;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
-
-        .header-container {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 1rem;
-        }
-
-        .logo {
-            display: flex;
-            align-items: center;
-            font-size: 1.5rem;
-            font-weight: bold;
-        }
-
-        .logo i {
-            margin-right: 0.5rem;
-            font-size: 1.8rem;
-        }
-
-        .nav-links a {
-            color: var(--header-text);
-            text-decoration: none;
-            margin-left: 1.5rem;
-            font-weight: 500;
-            opacity: 0.8;
-            transition: opacity 0.3s;
-        }
-
-        .nav-links a.active, .nav-links a:hover {
-            opacity: 1;
-            border-bottom: 2px solid var(--header-text);
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 2rem auto;
-            padding: 0 1rem;
-        }
-
-        .main-content {
-            min-height: calc(100vh - 180px);
-        }
-
-        .dashboard {
-            display: grid;
-            grid-template-columns: 1fr;
-            grid-gap: 2rem;
-        }
-
-        @media (min-width: 768px) {
-            .dashboard {
-                grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-            }
-        }
-
         .card {
-            background-color: var(--card-bg);
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            padding: 1.5rem;
-            transition: transform 0.3s, box-shadow 0.3s;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-
-        .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
-        }
-
-        .card h2 {
-            margin-bottom: 1.5rem;
-            color: var(--primary-color);
-            font-size: 1.5rem;
-            border-bottom: 2px solid var(--border-color);
-            padding-bottom: 0.5rem;
-        }
-
-        footer {
-            text-align: center;
-            padding: 1.5rem 0;
-            margin-top: 2rem;
-            background-color: var(--card-bg);
-            border-top: 1px solid var(--border-color);
-        }
-
-        /* Animations */
-        @keyframes pulse {
-            0% {
-                transform: scale(1);
-            }
-            50% {
-                transform: scale(1.05);
-            }
-            100% {
-                transform: scale(1);
-            }
-        }
-
-        .value-update {
-            animation: pulse 0.5s ease;
-            background-color: rgba(255, 193, 7, 0.3);
-        }
-
-        /* Connection status indicator */
-        .connection-status {
-            display: flex;
-            align-items: center;
-            margin-bottom: 1rem;
-            padding: 0.5rem;
-            border-radius: 6px;
-            background-color: rgba(0, 0, 0, 0.05);
-        }
-
-        .status-dot {
-            width: 12px;
-            height: 12px;
-            border-radius: 50%;
-            margin-right: 0.5rem;
-        }
-
-        .status-connected {
-            background-color: var(--success-color);
-        }
-
-        .status-disconnected {
-            background-color: var(--danger-color);
-        }
-
-        .toggle-theme {
-            background: none;
-            border: none;
-            color: var(--header-text);
-            cursor: pointer;
-            font-size: 1.2rem;
-            margin-left: 1rem;
-        }
-
-        /* Form styles */
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 500;
-        }
-
-        .form-control {
-            width: 100%;
-            padding: 0.75rem;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            font-size: 1rem;
-            transition: border-color 0.3s;
-        }
-
-        .form-control:focus {
-            border-color: var(--primary-color);
-            outline: none;
-            box-shadow: 0 0 0 2px rgba(0, 119, 204, 0.2);
-        }
-
-        .checkbox-group {
-            display: flex;
-            align-items: center;
-        }
-
-        .checkbox-group input[type="checkbox"] {
-            margin-right: 0.5rem;
-            width: 18px;
-            height: 18px;
-        }
-
-        .form-actions {
-            display: flex;
-            justify-content: flex-end;
-            gap: 1rem;
-            margin-top: 2rem;
-        }
-
-        .btn {
-            padding: 0.75rem 1.5rem;
-            border: none;
-            border-radius: 6px;
-            font-size: 1rem;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .btn-primary {
-            background-color: var(--primary-color);
+        .card-header {
+            background-color: #007bff;
             color: white;
         }
-
-        .btn-primary:hover {
-            background-color: var(--secondary-color);
-        }
-
-        .btn-secondary {
-            background-color: var(--border-color);
-            color: var(--text-color);
-        }
-
-        .btn-secondary:hover {
-            background-color: #d1d8dd;
-        }
-
-        /* Range slider styling */
-        .range-container {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .range-slider {
-            -webkit-appearance: none;
-            width: 100%;
-            height: 8px;
-            border-radius: 5px;
-            background: var(--border-color);
-            outline: none;
-            margin-bottom: 0.5rem;
-        }
-
-        .range-slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 20px;
-            height: 20px;
+        .status-indicator {
+            width: 15px;
+            height: 15px;
             border-radius: 50%;
-            background: var(--primary-color);
-            cursor: pointer;
-            transition: background 0.15s ease;
-        }
-
-        .range-slider::-moz-range-thumb {
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: var(--primary-color);
-            cursor: pointer;
-            transition: background 0.15s ease;
-        }
-
-        .range-slider::-webkit-slider-thumb:hover {
-            background: var(--secondary-color);
-        }
-
-        .range-slider::-moz-range-thumb:hover {
-            background: var(--secondary-color);
-        }
-
-        .range-values {
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.85rem;
-            color: var(--text-color);
-        }
-
-        .range-display {
-            text-align: center;
-            font-weight: bold;
-            margin-top: 0.5rem;
-        }
-
-        /* Toggle switch */
-        .switch {
-            position: relative;
             display: inline-block;
-            width: 52px;
-            height: 26px;
+            margin-right: 5px;
         }
-
-        .switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
+        .status-connected {
+            background-color: #28a745;
         }
-
-        .slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: var(--border-color);
-            transition: .4s;
-            border-radius: 26px;
-        }
-
-        .slider:before {
-            position: absolute;
-            content: "";
-            height: 18px;
-            width: 18px;
-            left: 4px;
-            bottom: 4px;
-            background-color: white;
-            transition: .4s;
-            border-radius: 50%;
-        }
-
-        input:checked + .slider {
-            background-color: var(--success-color);
-        }
-
-        input:focus + .slider {
-            box-shadow: 0 0 1px var(--success-color);
-        }
-
-        input:checked + .slider:before {
-            transform: translateX(26px);
-        }
-
-        .toggle-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.5rem 0;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .toggle-row:last-child {
-            border-bottom: none;
-        }
-
-        .toggle-label {
-            font-weight: 500;
-        }
-
-        /* Select styling */
-        select.form-control {
-            appearance: none;
-            background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right 0.75rem center;
-            background-size: 16px 12px;
-            padding-right: 2.5rem;
-        }
-
-        /* Save notification */
-        #save-notification {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 15px 20px;
-            background-color: var(--success-color);
-            color: white;
-            border-radius: 6px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            transform: translateY(-100px);
-            opacity: 0;
-            transition: all 0.5s ease;
-            z-index: 1000;
-        }
-
-        #save-notification.show {
-            transform: translateY(0);
-            opacity: 1;
+        .status-disconnected {
+            background-color: #dc3545;
         }
     </style>
 </head>
 <body>
-    <header id="main-header">
-        <div class="header-container">
-            <div class="logo">
-                <i class="fas fa-cloud-sun"></i>
-                <span>Smart Clothesline System</span>
+    <div class="container">
+        <h3 class="mb-4">Pengaturan Sistem</h3>
+
+        <!-- NodeMCU Configuration Card -->
+        <div class="card">
+            <div class="card-header">
+                Konfigurasi NodeMCU
             </div>
-            <div class="nav-links">
-                <a href="/">Home</a>
-                <a href="/realtime-monitoring">Real-time Monitoring</a>
-                <a href="/control">Manual Control</a>
-                <a href="/settings" class="active">System Settings</a>
-                <button id="theme-toggle" class="toggle-theme">
-                    <i class="fas fa-moon"></i>
-                </button>
-            </div>
-        </div>
-    </header>
-
-    <div class="container main-content">
-        <div class="dashboard">
-            <div class="card">
-                <div class="connection-status">
-                    <div id="connection-dot" class="status-dot status-disconnected"></div>
-                    <span id="connection-text">Checking connection...</span>
-                </div>
-                
-                <h2><i class="fas fa-cog"></i> System Settings</h2>
-                <form id="settings-form">
-                    <div class="form-group">
-                        <label for="device-name">Device Name</label>
-                        <input type="text" id="device-name" class="form-control" placeholder="e.g. Backyard Clothesline">
+            <div class="card-body">
+                <form id="nodemcuConfigForm">
+                    <div class="mb-3">
+                        <label class="form-label">Base URL</label>
+                        <input type="url" class="form-control" id="baseUrl" required>
                     </div>
-
-                    <div class="form-group">
-                        <label for="wifi-ssid">WiFi SSID</label>
-                        <input type="text" id="wifi-ssid" class="form-control" placeholder="Network name">
+                    <div class="mb-3">
+                        <label class="form-label">Timeout (detik)</label>
+                        <input type="number" class="form-control" id="timeout" step="0.1" min="1" max="10" required>
                     </div>
-
-                    <div class="form-group">
-                        <label for="wifi-password">WiFi Password</label>
-                        <input type="password" id="wifi-password" class="form-control" placeholder="Network password">
-                    </div>
-
-                    <div class="form-actions">
-                        <button type="button" id="reset-btn" class="btn btn-secondary">Reset</button>
-                        <button type="submit" id="save-btn" class="btn btn-primary">Save Changes</button>
-                    </div>
+                    <button type="submit" class="btn btn-primary">Simpan Konfigurasi</button>
                 </form>
             </div>
-            
-            <div class="card">
-                <h2><i class="fas fa-sliders-h"></i> Sensor Thresholds</h2>
-                <div class="form-group">
-                    <label for="light-threshold">Light Sensor (LDR) Threshold</label>
-                    <div class="range-container">
-                        <input type="range" id="light-threshold" class="range-slider" min="0" max="1023" value="500">
-                        <div class="range-values">
-                            <span>Darker</span>
-                            <span>Brighter</span>
-                        </div>
-                        <div class="range-display">Value: <span id="light-value">500</span></div>
-                    </div>
-                    <p class="form-help">The clothesline will extend when light level exceeds this threshold.</p>
-                </div>
+        </div>
 
-                <div class="form-group">
-                    <label for="rain-threshold">Rain Sensor Threshold</label>
-                    <div class="range-container">
-                        <input type="range" id="rain-threshold" class="range-slider" min="0" max="1023" value="300">
-                        <div class="range-values">
-                            <span>More Sensitive</span>
-                            <span>Less Sensitive</span>
-                        </div>
-                        <div class="range-display">Value: <span id="rain-value">300</span></div>
+        <!-- Auto Mode Settings Card -->
+        <div class="card">
+            <div class="card-header">
+                Pengaturan Mode Otomatis
+            </div>
+            <div class="card-body">
+                <form id="autoSettingsForm">
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="autoEnabled">
+                        <label class="form-check-label">Aktifkan Mode Otomatis</label>
                     </div>
-                    <p class="form-help">The clothesline will retract when rain level exceeds this threshold.</p>
-                </div>
+                    <div class="mb-3">
+                        <label class="form-label">Ambang Cahaya (LDR)</label>
+                        <input type="number" class="form-control" id="lightThreshold" min="0" max="4095" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Ambang Hujan</label>
+                        <input type="number" class="form-control" id="rainThreshold" min="0" max="4095" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Simpan Pengaturan</button>
+                </form>
+            </div>
+        </div>
 
-                <div class="form-actions">
-                    <button type="button" id="default-thresholds" class="btn btn-secondary">Reset to Default</button>
-                    <button type="button" id="save-thresholds" class="btn btn-primary">Save Thresholds</button>
+        <!-- Model Training Section -->
+        <div class="card">
+            <div class="card-header">
+                Pelatihan Model
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <p>Status Model: 
+                        <span class="status-indicator" id="modelStatusIndicator"></span>
+                        <span id="modelStatusText">Mengambil status...</span>
+                    </p>
+                    <p>Data yang tersedia: <span id="dataCount">-</span> records</p>
+                    <button class="btn btn-warning" onclick="forceTrainModel()">Latih Ulang Model</button>
                 </div>
             </div>
+        </div>
 
-            <div class="card">
-                <h2><i class="fas fa-toggle-on"></i> Automatic Controls</h2>
-                <div class="toggle-row">
-                    <span class="toggle-label">Enable Automatic Mode</span>
-                    <label class="switch">
-                        <input type="checkbox" id="auto-mode" checked>
-                        <span class="slider"></span>
-                    </label>
-                </div>
-
-                <div class="toggle-row">
-                    <span class="toggle-label">Light Sensor Control</span>
-                    <label class="switch">
-                        <input type="checkbox" id="light-control" checked>
-                        <span class="slider"></span>
-                    </label>
-                </div>
-
-                <div class="toggle-row">
-                    <span class="toggle-label">Rain Sensor Control</span>
-                    <label class="switch">
-                        <input type="checkbox" id="rain-control" checked>
-                        <span class="slider"></span>
-                    </label>
-                </div>
-
-                <div class="toggle-row">
-                    <span class="toggle-label">Time-based Schedule</span>
-                    <label class="switch">
-                        <input type="checkbox" id="schedule-control">
-                        <span class="slider"></span>
-                    </label>
-                </div>
-
-                <div class="form-group" id="schedule-settings" style="display: none;">
-                    <div class="form-group">
-                        <label for="extend-time">Extend Time</label>
-                        <input type="time" id="extend-time" class="form-control" value="07:00">
-                    </div>
-                    <div class="form-group">
-                        <label for="retract-time">Retract Time</label>
-                        <input type="time" id="retract-time" class="form-control" value="18:00">
-                    </div>
-                </div>
-
-                <div class="form-actions">
-                    <button type="button" id="save-auto" class="btn btn-primary">Save Automatic Settings</button>
-                </div>
-            </div>
-
-            <div class="card">
-                <h2><i class="fas fa-tools"></i> System Maintenance</h2>
-                <div class="form-group">
-                    <label for="firmware-version">Current Firmware Version</label>
-                    <input type="text" id="firmware-version" class="form-control" value="v1.2.0" disabled>
-                </div>
-
-                <div class="form-group">
-                    <label for="update-channel">Update Channel</label>
-                    <select id="update-channel" class="form-control">
-                        <option value="stable">Stable</option>
-                        <option value="beta">Beta</option>
-                        <option value="developer">Developer</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <button type="button" id="check-updates" class="btn btn-primary">Check for Updates</button>
-                </div>
-
-                <div class="form-group">
-                    <label>System Operations</label>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; grid-gap: 1rem;">
-                        <button type="button" id="reboot-device" class="btn btn-secondary">Reboot Device</button>
-                        <button type="button" id="factory-reset" class="btn btn-secondary">Factory Reset</button>
-                    </div>
-                </div>
-            </div>
+        <!-- Connection Status -->
+        <div class="alert alert-info" role="alert">
+            Status Koneksi NodeMCU: <span id="connectionStatus">Mengecek...</span>
         </div>
     </div>
 
-    <div id="save-notification">Settings saved successfully!</div>
-
-    <footer>
-        <p>© 2023 Smart Clothesline System. All rights reserved.</p>
-        <p>IoT Innovation Lab</p>
-    </footer>
-
     <script>
-        // Theme Toggle Functionality
-        const themeToggle = document.getElementById('theme-toggle');
-        const themeIcon = themeToggle.querySelector('i');
-        
-        function applyTheme() {
-            // Check theme preference from localStorage
-            const currentTheme = localStorage.getItem('theme');
-            const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
-            
-            // Apply theme based on priority: localStorage, then system preference
-            if (currentTheme === 'dark') {
-                document.documentElement.setAttribute('data-theme', 'dark');
-                themeIcon.className = 'fas fa-sun';
-            } else if (currentTheme === 'light') {
-                document.documentElement.setAttribute('data-theme', 'light');
-                themeIcon.className = 'fas fa-moon';
-            } else if (prefersDarkScheme.matches) {
-                document.documentElement.setAttribute('data-theme', 'dark');
-                themeIcon.className = 'fas fa-sun';
-            }
-        }
-        
-        themeToggle.addEventListener('click', () => {
-            const currentTheme = document.documentElement.getAttribute('data-theme');
-            
-            if (currentTheme === 'dark') {
-                document.documentElement.setAttribute('data-theme', 'light');
-                localStorage.setItem('theme', 'light');
-                themeIcon.className = 'fas fa-moon';
-            } else {
-                document.documentElement.setAttribute('data-theme', 'dark');
-                localStorage.setItem('theme', 'dark');
-                themeIcon.className = 'fas fa-sun';
-            }
-        });
-        
-        // Run on page load
-        applyTheme();
-
-        // Global variables
-        let isConnected = false;
-        let pollingInterval;
-        let retryCount = 0;
-        const MAX_RETRIES = 5;
-        const RETRY_DELAY = 5000; // 5 seconds
-        const POLLING_INTERVAL = 3000; // 3 seconds
-        
-        // Initialize connection
-        document.addEventListener('DOMContentLoaded', () => {
+        // Load settings when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            loadConfig();
+            loadAutoSettings();
             checkConnection();
-            initializeRangeSliders();
-            initializeFormListeners();
+            checkModelStatus();
         });
-        
+
+        // Handle NodeMCU Config Form
+        document.getElementById('nodemcuConfigForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            saveConfig({
+                base_url: document.getElementById('baseUrl').value,
+                timeout: parseFloat(document.getElementById('timeout').value)
+            });
+        });
+
+        // Handle Auto Settings Form
+        document.getElementById('autoSettingsForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            saveAutoSettings({
+                enabled: document.getElementById('autoEnabled').checked,
+                lightThreshold: parseInt(document.getElementById('lightThreshold').value),
+                rainThreshold: parseInt(document.getElementById('rainThreshold').value)
+            });
+        });
+
+        function loadConfig() {
+            fetch('/get-config')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('baseUrl').value = data.base_url;
+                    document.getElementById('timeout').value = data.timeout;
+                });
+        }
+
+        function saveConfig(config) {
+            fetch('/save-config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
+            })
+            .then(response => response.json())
+            .then(result => {
+                alert(result.message);
+            });
+        }
+
+        function loadAutoSettings() {
+            fetch('/get-auto-settings')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('autoEnabled').checked = data.enabled;
+                    document.getElementById('lightThreshold').value = data.lightThreshold;
+                    document.getElementById('rainThreshold').value = data.rainThreshold;
+                });
+        }
+
+        function saveAutoSettings(settings) {
+            fetch('/save-auto-settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(settings)
+            })
+            .then(response => response.json())
+            .then(result => {
+                alert(result.message);
+            });
+        }
+
         function checkConnection() {
             fetch('/check-nodemcu')
-                .then(response => {
-                    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-                    return response.json();
-                })
+                .then(response => response.json())
                 .then(data => {
-                    if (data.status === 'connected' || data.status === 'partial') {
-                        setConnectionStatus(true, data.message);
-                        loadSettings();
+                    document.getElementById('connectionStatus').textContent = data.message;
+                });
+        }
+
+        function checkModelStatus() {
+            fetch('/check-model-status')
+                .then(response => response.json())
+                .then(data => {
+                    const indicator = document.getElementById('modelStatusIndicator');
+                    indicator.className = `status-indicator ${data.model_trained_flag ? 'status-connected' : 'status-disconnected'}`;
+                    document.getElementById('modelStatusText').textContent = 
+                        data.model_trained_flag ? 'Model Terlatih' : 'Model Belum Terlatih';
+                    document.getElementById('dataCount').textContent = 
+                        data.enough_data ? 'Cukup' : 'Tidak Cukup';
+                });
+        }
+
+        function forceTrainModel() {
+            fetch('/force-train-model')
+                .then(response => response.json())
+                .then(result => {
+                    if(result.status === 'success') {
+                        alert('Model berhasil dilatih ulang! Akurasi: ' + result.accuracy);
+                        checkModelStatus();
                     } else {
-                        setConnectionStatus(false, data.message);
-                        scheduleRetry();
+                        alert('Error: ' + result.message);
                     }
-                })
-                .catch(error => {
-                    console.error('Connection check failed:', error);
-                    setConnectionStatus(false, 'Connection error');
-                    scheduleRetry();
                 });
         }
-        
-        function setConnectionStatus(connected, message) {
-            const statusDot = document.getElementById('connection-dot');
-            const statusText = document.getElementById('connection-text');
-            
-            isConnected = connected;
-            
-            if (connected) {
-                statusDot.className = 'status-dot status-connected';
-                statusText.innerText = message || 'Connected';
-                retryCount = 0; // Reset retry counter on successful connection
-            } else {
-                statusDot.className = 'status-dot status-disconnected';
-                statusText.innerText = message || 'Disconnected';
-            }
-        }
-        
-        function scheduleRetry() {
-            retryCount++;
-            
-            if (retryCount <= MAX_RETRIES) {
-                document.getElementById('connection-text').innerText = `Connection failed. Retrying (${retryCount}/${MAX_RETRIES})...`;
-                setTimeout(checkConnection, RETRY_DELAY);
-            } else {
-                document.getElementById('connection-text').innerText = 'Connection failed. Please check your NodeMCU.';
-            }
-        }
-        
-        function initializeRangeSliders() {
-            // Light threshold slider
-            const lightSlider = document.getElementById('light-threshold');
-            const lightValue = document.getElementById('light-value');
-            
-            lightSlider.addEventListener('input', function() {
-                lightValue.textContent = this.value;
-            });
-            
-            // Rain threshold slider
-            const rainSlider = document.getElementById('rain-threshold');
-            const rainValue = document.getElementById('rain-value');
-            
-            rainSlider.addEventListener('input', function() {
-                rainValue.textContent = this.value;
-            });
-        }
-        
-        function initializeFormListeners() {
-            // Schedule toggle
-            const scheduleToggle = document.getElementById('schedule-control');
-            const scheduleSettings = document.getElementById('schedule-settings');
-            
-            scheduleToggle.addEventListener('change', function() {
-                scheduleSettings.style.display = this.checked ? 'block' : 'none';
-            });
-            
-            // Settings form submit
-            const settingsForm = document.getElementById('settings-form');
-            settingsForm.addEventListener('submit', function(e) {
-                e.preventDefault();
-                saveNetworkSettings();
-            });
-            
-            // Reset button
-            const resetBtn = document.getElementById('reset-btn');
-            resetBtn.addEventListener('click', function() {
-                settingsForm.reset();
-            });
-            
-            // Threshold save button
-            const saveThresholdsBtn = document.getElementById('save-thresholds');
-            saveThresholdsBtn.addEventListener('click', function() {
-                saveThresholds();
-            });
-            
-            // Default thresholds button
-            const defaultThresholdsBtn = document.getElementById('default-thresholds');
-            defaultThresholdsBtn.addEventListener('click', function() {
-                document.getElementById('light-threshold').value = 500;
-                document.getElementById('light-value').textContent = 500;
-                document.getElementById('rain-threshold').value = 300;
-                document.getElementById('rain-value').textContent = 300;
-            });
-            
-            // Auto settings save button
-            const saveAutoBtn = document.getElementById('save-auto');
-            saveAutoBtn.addEventListener('click', function() {
-                saveAutoSettings();
-            });
-            
-            // Reboot button
-            const rebootBtn = document.getElementById('reboot-device');
-            rebootBtn.addEventListener('click', function() {
-                if (confirm('Are you sure you want to reboot the device?')) {
-                    rebootDevice();
-                }
-            });
-            
-            // Factory reset button
-            const factoryResetBtn = document.getElementById('factory-reset');
-            factoryResetBtn.addEventListener('click', function() {
-                if (confirm('WARNING: This will reset all settings to factory defaults. Continue?')) {
-                    factoryReset();
-                }
-            });
-            
-            // Check updates button
-            const checkUpdatesBtn = document.getElementById('check-updates');
-            checkUpdatesBtn.addEventListener('click', function() {
-                checkForUpdates();
-            });
-        }
-        
-        function loadSettings() {
-            if (!isConnected) return;
-            
-            fetch('/get_settings')
-                .then(response => {
-                    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-                    return response.json();
-                })
-                .then(data => {
-                    console.log('Settings received:', data);
-                    populateSettings(data);
-                })
-                .catch(error => {
-                    console.error('Error fetching settings:', error);
-                });
-        }
-        
-        function populateSettings(data) {
-            // For demo purposes, populate with sample data if real data isn't available
-            if (!data || Object.keys(data).length === 0) {
-                console.warn('Empty settings received, using defaults');
-                data = {
-                    device_name: 'Smart Clothesline',
-                    wifi_ssid: 'HomeNetwork',
-                    light_threshold: 500,
-                    rain_threshold: 300,
-                    auto_mode: true,
-                    light_control: true,
-                    rain_control: true,
-                    schedule_control: false,
-                    extend_time: '07:00',
-                    retract_time: '18:00',
-                    firmware_version: 'v1.2.0',
-                    update_channel: 'stable'
-                };
-            }
-            
-            // Populate form fields
-            if (data.device_name) document.getElementById('device-name').value = data.device_name;
-            if (data.wifi_ssid) document.getElementById('wifi-ssid').value = data.wifi_ssid;
-            
-            // Don't populate password for security reasons
-            
-            // Sensor thresholds
-            if (data.light_threshold) {
-                document.getElementById('light-threshold').value = data.light_threshold;
-                document.getElementById('light-value').textContent = data.light_threshold;
-            }
-            
-            if (data.rain_threshold) {
-                document.getElementById('rain-threshold').value = data.rain_threshold;
-                document.getElementById('rain-value').textContent = data.rain_threshold;
-            }
-            
-            // Auto settings
-            if (data.auto_mode !== undefined) document.getElementById('auto-mode').checked = data.auto_mode;
-            if (data.light_control !== undefined) document.getElementById('light-control').checked = data.light_control;
-            if (data.rain_control !== undefined) document.getElementById('rain-control').checked = data.rain_control;
-            if (data.schedule_control !== undefined) {
-                document.getElementById('schedule-control').checked = data.schedule_control;
-                document.getElementById('schedule-settings').style.display = data.schedule_control ? 'block' : 'none';
-            }
-            
-            if (data.extend_time) document.getElementById('extend-time').value = data.extend_time;
-            if (data.retract_time) document.getElementById('retract-time').value = data.retract_time;
-            
-            // System maintenance
-            if (data.firmware_version) document.getElementById('firmware-version').value = data.firmware_version;
-            if (data.update_channel) document.getElementById('update-channel').value = data.update_channel;
-        }
-        function saveNetworkSettings() {
-    if (!isConnected) {
-        showNotification('Cannot save settings: Device is disconnected', 'error');
-        return;
-    }
-    
-    const deviceName = document.getElementById('device-name').value;
-    const wifiSSID = document.getElementById('wifi-ssid').value;
-    const wifiPassword = document.getElementById('wifi-password').value;
-    
-    // Validate inputs
-    if (!deviceName || !wifiSSID) {
-        showNotification('Please fill in all required fields', 'error');
-        return;
-    }
-    
-    const settings = {
-        device_name: deviceName,
-        wifi_ssid: wifiSSID
-    };
-    
-    // Only send password if it was changed (not empty)
-    if (wifiPassword) {
-        settings.wifi_password = wifiPassword;
-    }
-    
-    // Send settings to server
-    fetch('/save_network_settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings)
-    })
-    .then(response => {
-        if (!response.ok) throw new Error('Failed to save network settings');
-        return response.json();
-    })
-    .then(data => {
-        console.log('Network settings saved:', data);
-        showNotification('Network settings saved successfully');
-    })
-    .catch(error => {
-        console.error('Error saving network settings:', error);
-        showNotification('Failed to save network settings: ' + error.message, 'error');
-    });
-}
-
-function saveThresholds() {
-    if (!isConnected) {
-        showNotification('Cannot save settings: Device is disconnected', 'error');
-        return;
-    }
-    
-    const lightThreshold = document.getElementById('light-threshold').value;
-    const rainThreshold = document.getElementById('rain-threshold').value;
-    
-    const settings = {
-        light_threshold: parseInt(lightThreshold),
-        rain_threshold: parseInt(rainThreshold)
-    };
-    
-    fetch('/save_thresholds', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings)
-    })
-    .then(response => {
-        if (!response.ok) throw new Error('Failed to save threshold settings');
-        return response.json();
-    })
-    .then(data => {
-        console.log('Threshold settings saved:', data);
-        showNotification('Threshold settings saved successfully');
-    })
-    .catch(error => {
-        console.error('Error saving threshold settings:', error);
-        showNotification('Failed to save threshold settings: ' + error.message, 'error');
-    });
-}
-
-function saveAutoSettings() {
-    if (!isConnected) {
-        showNotification('Cannot save settings: Device is disconnected', 'error');
-        return;
-    }
-    
-    const autoMode = document.getElementById('auto-mode').checked;
-    const lightControl = document.getElementById('light-control').checked;
-    const rainControl = document.getElementById('rain-control').checked;
-    const scheduleControl = document.getElementById('schedule-control').checked;
-    const extendTime = document.getElementById('extend-time').value;
-    const retractTime = document.getElementById('retract-time').value;
-    
-    const settings = {
-        auto_mode: autoMode,
-        light_control: lightControl,
-        rain_control: rainControl,
-        schedule_control: scheduleControl,
-        extend_time: extendTime,
-        retract_time: retractTime
-    };
-    
-    fetch('/save_auto_settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings)
-    })
-    .then(response => {
-        if (!response.ok) throw new Error('Failed to save automatic settings');
-        return response.json();
-    })
-    .then(data => {
-        console.log('Automatic settings saved:', data);
-        showNotification('Automatic settings saved successfully');
-    })
-    .catch(error => {
-        console.error('Error saving automatic settings:', error);
-        showNotification('Failed to save automatic settings: ' + error.message, 'error');
-    });
-}
-
-function rebootDevice() {
-    if (!isConnected) {
-        showNotification('Cannot reboot: Device is disconnected', 'error');
-        return;
-    }
-    
-    fetch('/reboot_device', {
-        method: 'POST'
-    })
-    .then(response => {
-        if (!response.ok) throw new Error('Failed to reboot device');
-        return response.json();
-    })
-    .then(data => {
-        console.log('Reboot command sent:', data);
-        showNotification('Device is rebooting. Please wait...');
-        
-        // Show countdown
-        let countdown = 30;
-        setConnectionStatus(false, `Rebooting device (${countdown}s)`);
-        
-        const rebootInterval = setInterval(() => {
-            countdown--;
-            setConnectionStatus(false, `Rebooting device (${countdown}s)`);
-            
-            if (countdown <= 0) {
-                clearInterval(rebootInterval);
-                checkConnection(); // Try to reconnect after reboot
-            }
-        }, 1000);
-    })
-    .catch(error => {
-        console.error('Error rebooting device:', error);
-        showNotification('Failed to reboot device: ' + error.message, 'error');
-    });
-}
-
-function factoryReset() {
-    if (!isConnected) {
-        showNotification('Cannot reset: Device is disconnected', 'error');
-        return;
-    }
-    
-    fetch('/factory_reset', {
-        method: 'POST'
-    })
-    .then(response => {
-        if (!response.ok) throw new Error('Failed to reset device');
-        return response.json();
-    })
-    .then(data => {
-        console.log('Factory reset command sent:', data);
-        showNotification('Factory reset initiated. Device will reboot.');
-        
-        // Show countdown
-        let countdown = 45;
-        setConnectionStatus(false, `Factory resetting (${countdown}s)`);
-        
-        const resetInterval = setInterval(() => {
-            countdown--;
-            setConnectionStatus(false, `Factory resetting (${countdown}s)`);
-            
-            if (countdown <= 0) {
-                clearInterval(resetInterval);
-                // Refresh the page after factory reset
-                window.location.reload();
-            }
-        }, 1000);
-    })
-    .catch(error => {
-        console.error('Error resetting device:', error);
-        showNotification('Failed to factory reset device: ' + error.message, 'error');
-    });
-}
-
-function checkForUpdates() {
-    if (!isConnected) {
-        showNotification('Cannot check for updates: Device is disconnected', 'error');
-        return;
-    }
-    
-    const updateChannel = document.getElementById('update-channel').value;
-    
-    fetch('/check_updates', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ channel: updateChannel })
-    })
-    .then(response => {
-        if (!response.ok) throw new Error('Failed to check for updates');
-        return response.json();
-    })
-    .then(data => {
-        console.log('Update check result:', data);
-        
-        if (data.update_available) {
-            if (confirm(`Update available: ${data.version}. Would you like to update now?`)) {
-                installUpdate(data.version);
-            } else {
-                showNotification(`Update available: ${data.version}. You can update later.`);
-            }
-        } else {
-            showNotification('No updates available. You are on the latest version.');
-        }
-    })
-    .catch(error => {
-        console.error('Error checking for updates:', error);
-        showNotification('Failed to check for updates: ' + error.message, 'error');
-    });
-}
-
-function installUpdate(version) {
-    fetch('/install_update', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ version: version })
-    })
-    .then(response => {
-        if (!response.ok) throw new Error('Failed to install update');
-        return response.json();
-    })
-    .then(data => {
-        console.log('Update installation initiated:', data);
-        showNotification('Update installation started. Device will reboot when complete.');
-        
-        // Show progress indicator
-        let progress = 0;
-        setConnectionStatus(false, `Installing update (${progress}%)`);
-        
-        const updateInterval = setInterval(() => {
-            progress += 10;
-            setConnectionStatus(false, `Installing update (${progress}%)`);
-            
-            if (progress >= 100) {
-                clearInterval(updateInterval);
-                showNotification('Update complete. Device is rebooting...');
-                
-                // Wait for reboot
-                setTimeout(() => {
-                    checkConnection();
-                }, 10000);
-            }
-        }, 1000);
-    })
-    .catch(error => {
-        console.error('Error installing update:', error);
-        showNotification('Failed to install update: ' + error.message, 'error');
-    });
-}
-
-function showNotification(message, type = 'success') {
-    const notification = document.getElementById('save-notification');
-    notification.innerText = message;
-    
-    if (type === 'error') {
-        notification.style.backgroundColor = 'var(--danger-color)';
-    } else {
-        notification.style.backgroundColor = 'var(--success-color)';
-    }
-    
-    notification.classList.add('show');
-    
-    setTimeout(() => {
-        notification.classList.remove('show');
-    }, 3000);
-}
-
-// Mock functions for demo purposes
-function mockDataAndSettings() {
-    // This function simulates API responses for demonstration
-    const mockData = {
-        ldr: Math.floor(Math.random() * 1023),
-        rain: Math.floor(Math.random() * 100),
-        status: ['TERTUTUP', 'TERBUKA', 'BERGERAK_BUKA', 'BERGERAK_TUTUP'][Math.floor(Math.random() * 4)],
-        rotation: Math.random() > 0.5 ? 1 : 0,
-        weather: ['Sunny', 'Cloudy', 'Rainy'][Math.floor(Math.random() * 3)],
-        device_id: 'CLS-2023-004',
-        ip_address: '192.168.1.' + Math.floor(Math.random() * 255)
-    };
-    
-    const mockSettings = {
-        device_name: 'Smart Clothesline',
-        wifi_ssid: 'HomeNetwork',
-        light_threshold: 500,
-        rain_threshold: 300,
-        auto_mode: true,
-        light_control: true,
-        rain_control: true,
-        schedule_control: false,
-        extend_time: '07:00',
-        retract_time: '18:00',
-        firmware_version: 'v1.2.0',
-        update_channel: 'stable'
-    };
-    
-    return {
-        mockData: mockData,
-        mockSettings: mockSettings
-    };
-}
-
-// For development/testing purposes only - this can be removed in production
-if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    console.log('Running in development mode - using mock data');
-    
-    // Override the fetch function to return mock data
-    const originalFetch = window.fetch;
-    window.fetch = function(url, options) {
-        const { mockData, mockSettings } = mockDataAndSettings();
-        
-        if (url === '/check-nodemcu') {
-            return Promise.resolve({
-                ok: true,
-                json: () => Promise.resolve({ status: 'connected', message: 'Connected (DEV)' })
-            });
-        } else if (url === '/get_data') {
-            return Promise.resolve({
-                ok: true,
-                json: () => Promise.resolve(mockData)
-            });
-        } else if (url === '/get_settings') {
-            return Promise.resolve({
-                ok: true,
-                json: () => Promise.resolve(mockSettings)
-            });
-        } else if (options && options.method === 'POST') {
-            return Promise.resolve({
-                ok: true,
-                json: () => Promise.resolve({ status: 'success', message: 'Operation completed successfully' })
-            });
-        }
-        
-        // Pass through any other requests
-        return originalFetch(url, options);
-    };
-}
+    </script>
+</body>
+</html>

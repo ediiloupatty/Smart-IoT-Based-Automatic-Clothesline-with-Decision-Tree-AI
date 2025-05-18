@@ -1,939 +1,354 @@
 <!DOCTYPE html>
-<html lang="id" data-theme="light">
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monitoring Real-time | Smart Clothesline System</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-
+    <title>Realtime Monitoring - Smart Clothesline System</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .navbar-brand {
+            font-weight: bold;
+        }
+        .card {
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+            transition: transform 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        .sensor-value {
+            font-size: 2.2rem;
+            font-weight: bold;
+        }
+        .sensor-unit {
+            font-size: 1rem;
+            color: #6c757d;
+        }
+        .status-indicator {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .status-open {
+            background-color: #28a745;
+        }
+        .status-closed {
+            background-color: #dc3545;
+        }
+        .prediction-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .prediction-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+        }
+        .chart-container {
+            height: 300px;
+            margin-top: 20px;
+        }
+        #refresh-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 999;
+        }
+    </style>
 </head>
-<style>
-    :root {
-        --primary-color: #0077cc;
-        --secondary-color: #005fa3;
-        --bg-color: #f5f8fa;
-        --card-bg: #ffffff;
-        --text-color: #333333;
-        --border-color: #e1e8ed;
-        --success-color: #28a745;
-        --warning-color: #ffc107;
-        --danger-color: #dc3545;
-        --header-bg: #0077cc;
-        --header-text: #ffffff;
-    }
-
-    [data-theme="dark"] {
-        --primary-color: #1a91ff;
-        --secondary-color: #0084ff;
-        --bg-color: #15202b;
-        --card-bg: #192734;
-        --text-color: #ffffff;
-        --border-color: #38444d;
-        --success-color: #28a745;
-        --warning-color: #ffc107;
-        --danger-color: #dc3545;
-        --header-bg: #1a91ff;
-        --header-text: #ffffff;
-    }
-
-    * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-    }
-
-    body {
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        background-color: var(--bg-color);
-        color: var(--text-color);
-        transition: all 0.3s ease;
-    }
-
-    #main-header {
-        background-color: var(--header-bg);
-        color: var(--header-text);
-        padding: 1rem 0;
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    }
-
-    .header-container {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 0 1rem;
-    }
-
-    .logo {
-        display: flex;
-        align-items: center;
-        font-size: 1.5rem;
-        font-weight: bold;
-    }
-
-    .logo i {
-        margin-right: 0.5rem;
-        font-size: 1.8rem;
-    }
-
-    .nav-links a {
-        color: var(--header-text);
-        text-decoration: none;
-        margin-left: 1.5rem;
-        font-weight: 500;
-        opacity: 0.8;
-        transition: opacity 0.3s;
-    }
-
-    .nav-links a.active, .nav-links a:hover {
-        opacity: 1;
-        border-bottom: 2px solid var(--header-text);
-    }
-
-    .container {
-        max-width: 1200px;
-        margin: 2rem auto;
-        padding: 0 1rem;
-    }
-
-    .main-content {
-        min-height: calc(100vh - 180px);
-    }
-
-    .dashboard {
-        display: grid;
-        grid-template-columns: 1fr;
-        grid-gap: 2rem;
-    }
-
-    @media (min-width: 768px) {
-        .dashboard {
-            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-        }
-    }
-
-    .card {
-        background-color: var(--card-bg);
-        border-radius: 10px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        padding: 1.5rem;
-        transition: transform 0.3s, box-shadow 0.3s;
-    }
-
-    .card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
-    }
-
-    .card h2 {
-        margin-bottom: 1.5rem;
-        color: var(--primary-color);
-        font-size: 1.5rem;
-        border-bottom: 2px solid var(--border-color);
-        padding-bottom: 0.5rem;
-    }
-
-    .data-container {
-        display: grid;
-        grid-gap: 1rem;
-    }
-
-    .data-item {
-        display: flex;
-        justify-content: space-between;
-        padding: 0.8rem;
-        border-bottom: 1px solid var(--border-color);
-        align-items: center;
-    }
-
-    .data-item:last-child {
-        border-bottom: none;
-    }
-
-    .digital-value {
-        font-family: 'Courier New', Courier, monospace;
-        font-weight: bold;
-        padding: 0.3rem 0.8rem;
-        border-radius: 4px;
-        background-color: rgba(0, 119, 204, 0.1);
-        min-width: 120px;
-        text-align: center;
-    }
-
-    /* Connection status indicator */
-    .connection-status {
-        display: flex;
-        align-items: center;
-        margin-bottom: 1rem;
-        padding: 0.5rem;
-        border-radius: 6px;
-        background-color: rgba(0, 0, 0, 0.05);
-    }
-
-    .status-dot {
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        margin-right: 0.5rem;
-    }
-
-    .status-connected {
-        background-color: var(--success-color);
-    }
-
-    .status-disconnected {
-        background-color: var(--danger-color);
-    }
-
-    .toggle-theme {
-        background: none;
-        border: none;
-        color: var(--header-text);
-        cursor: pointer;
-        font-size: 1.2rem;
-        margin-left: 1rem;
-    }
-
-    /* Chart container styling */
-    .chart-container {
-        background-color: var(--card-bg);
-        border-radius: 10px;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        padding: 1.5rem;
-        margin-top: 2rem;
-        height: 300px;
-    }
-
-    /* Status badges */
-    .status-badge {
-        display: inline-block;
-        padding: 0.3rem 0.8rem;
-        border-radius: 20px;
-        font-weight: bold;
-        text-transform: uppercase;
-    }
-
-    .status-open {
-        background-color: var(--success-color);
-        color: white;
-    }
-
-    .status-closed {
-        background-color: var(--warning-color);
-        color: black;
-    }
-
-    .status-moving {
-        background-color: var(--primary-color);
-        color: white;
-        animation: pulse 1.5s infinite;
-    }
-
-    .status-error {
-        background-color: var(--danger-color);
-        color: white;
-    }
-
-    /* Loading spinner */
-    .loading-spinner {
-        border: 4px solid rgba(0, 0, 0, 0.1);
-        width: 36px;
-        height: 36px;
-        border-radius: 50%;
-        border-left: 4px solid var(--primary-color);
-        animation: spin 1s linear infinite;
-        margin: 20px auto;
-        display: none;
-    }
-    
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
-
-    /* Animations */
-    @keyframes pulse {
-        0% {
-            transform: scale(1);
-        }
-        50% {
-            transform: scale(1.05);
-        }
-        100% {
-            transform: scale(1);
-        }
-    }
-
-    .value-update {
-        animation: pulse 0.5s ease;
-        background-color: rgba(255, 193, 7, 0.3);
-    }
-
-    /* Sensor gauges */
-    .sensor-gauges {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        grid-gap: 1rem;
-    }
-
-    .gauge-container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-    }
-
-    .gauge {
-        width: 100%;
-        height: 120px;
-        position: relative;
-        overflow: hidden;
-        border-radius: 50% 50% 0 0;
-        background-color: rgba(0, 0, 0, 0.05);
-    }
-
-    .gauge-value {
-        position: absolute;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        background-color: var(--primary-color);
-        transition: height 0.5s ease;
-    }
-
-    .gauge-label {
-        margin-top: 0.5rem;
-        font-weight: bold;
-        display: flex;
-        justify-content: space-between;
-        width: 100%;
-    }
-
-    footer {
-        text-align: center;
-        padding: 1.5rem 0;
-        margin-top: 2rem;
-        background-color: var(--card-bg);
-        border-top: 1px solid var(--border-color);
-    }
-</style>
 <body>
-    <header id="main-header">
-        <div class="header-container">
-            <div class="logo">
-                <i class="fas fa-cloud-sun"></i>
-                <span>Smart Clothesline System</span>
-            </div>
-            <div class="nav-links">
-                <a href="/">Home</a>
-                <a href="/realtime-monitoring" class="active">Real-time Monitoring</a>
-                <a href="/control">Manual Control</a>
-                <a href="/settings">System Settings</a>
-                <button id="theme-toggle" class="toggle-theme">
-                    <i class="fas fa-moon"></i>
-                </button>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="/"><i class="fas fa-tshirt me-2"></i>Smart Clothesline System</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/"><i class="fas fa-home me-1"></i> Beranda</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/realtime-monitoring"><i class="fas fa-chart-line me-1"></i> Monitoring</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/control"><i class="fas fa-gamepad me-1"></i> Kontrol</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/settings"><i class="fas fa-cog me-1"></i> Pengaturan</a>
+                    </li>
+                </ul>
             </div>
         </div>
-    </header>
+    </nav>
 
-    <div class="container main-content">
-        <div class="connection-status">
-            <div id="connection-dot" class="status-dot status-disconnected"></div>
-            <span id="connection-text">Memeriksa koneksi...</span>
-        </div>
-
-        <div class="dashboard">
-            <div class="card">
-                <h2><i class="fas fa-info-circle"></i> System Status</h2>
-                <div class="data-container">
-                    <div class="data-item">
-                        <span>Light Intensity (LDR):</span>
-                        <span id="ldr-value" class="digital-value">-</span>
+    <!-- Main Content -->
+    <div class="container mt-4">
+        <h2 class="mb-4 text-center">Monitoring Realtime Jemuran Otomatis</h2>
+        
+        <div class="row">
+            <!-- Sensor Cards -->
+            <div class="col-md-8">
+                <div class="row">
+                    <!-- Light Sensor Card -->
+                    <div class="col-md-6">
+                        <div class="card mb-3">
+                            <div class="card-body text-center">
+                                <h5 class="card-title"><i class="fas fa-sun text-warning me-2"></i>Sensor Cahaya</h5>
+                                <div class="sensor-value" id="ldr-value">--</div>
+                                <div class="sensor-unit">Unit</div>
+                                <div class="progress mt-2">
+                                    <div class="progress-bar bg-warning" id="ldr-progress" role="progressbar" 
+                                         style="width: 0%"></div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="data-item">
-                        <span>Rain Sensor:</span>
-                        <span id="rain-value" class="digital-value">-</span>
+                    
+                    <!-- Rain Sensor Card -->
+                    <div class="col-md-6">
+                        <div class="card mb-3">
+                            <div class="card-body text-center">
+                                <h5 class="card-title"><i class="fas fa-cloud-rain text-primary me-2"></i>Sensor Hujan</h5>
+                                <div class="sensor-value" id="rain-value">--</div>
+                                <div class="sensor-unit">Unit</div>
+                                <div class="progress mt-2">
+                                    <div class="progress-bar bg-primary" id="rain-progress" role="progressbar" 
+                                         style="width: 0%"></div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="data-item">
-                        <span>Clothesline Status:</span>
-                        <span id="status-value" class="digital-value">-</span>
+                    
+                    <!-- Clothesline Status Card -->
+                    <div class="col-md-6">
+                        <div class="card mb-3">
+                            <div class="card-body text-center">
+                                <h5 class="card-title"><i class="fas fa-info-circle text-info me-2"></i>Status Jemuran</h5>
+                                <div class="d-flex align-items-center justify-content-center mt-3">
+                                    <span class="status-indicator" id="status-indicator"></span>
+                                    <div class="sensor-value" id="status-value">--</div>
+                                </div>
+                                <div class="mt-2" id="status-desc">Mengambil data...</div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="data-item">
-                        <span>Last Update:</span>
-                        <span id="time-value" class="digital-value">-</span>
+                    
+                    <!-- Motor Position Card -->
+                    <div class="col-md-6">
+                        <div class="card mb-3">
+                            <div class="card-body text-center">
+                                <h5 class="card-title"><i class="fas fa-sync text-success me-2"></i>Rotasi Motor</h5>
+                                <div class="sensor-value" id="rotation-value">--</div>
+                                <div class="sensor-unit">Derajat</div>
+                                <div class="progress mt-2">
+                                    <div class="progress-bar bg-success" id="rotation-progress" role="progressbar" 
+                                         style="width: 0%"></div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
             
-            <div class="card">
-                <h2><i class="fas fa-chart-line"></i> Sensor Readings</h2>
-                <div class="sensor-gauges">
-                    <div class="gauge-container">
-                        <div class="gauge">
-                            <div class="gauge-value" id="ldr-gauge" style="height: 0%"></div>
+            <!-- Weather Prediction Card -->
+            <div class="col-md-4">
+                <div class="card prediction-card mb-3">
+                    <div class="card-body text-center">
+                        <h5 class="card-title"><i class="fas fa-brain me-2"></i>Prediksi Cuaca</h5>
+                        <div class="mt-3" id="model-status">Mengecek status model...</div>
+                        <div class="mt-3 mb-2" id="prediction-result">
+                            <span class="prediction-value" id="prediction-value">--</span>
                         </div>
-                        <div class="gauge-label">
-                            <span>Light</span>
-                            <span id="ldr-gauge-value">0</span>
+                        <div class="progress mt-3 bg-light">
+                            <div class="progress-bar bg-danger" id="prediction-progress" role="progressbar" 
+                                 style="width: 0%"></div>
                         </div>
+                        <div class="mt-2" id="prediction-desc">Memuat prediksi...</div>
+                        <button class="btn btn-light mt-3" id="refresh-prediction-btn">
+                            <i class="fas fa-sync-alt"></i> Refresh Prediksi
+                        </button>
                     </div>
-                    <div class="gauge-container">
-                        <div class="gauge">
-                            <div class="gauge-value" id="rain-gauge" style="height: 0%"></div>
-                        </div>
-                        <div class="gauge-label">
-                            <span>Rain</span>
-                            <span id="rain-gauge-value">0</span>
+                </div>
+                
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h5 class="card-title"><i class="fas fa-clock text-secondary me-2"></i>Update Terakhir</h5>
+                        <div class="text-center mt-3">
+                            <div id="last-update">--:--:--</div>
+                            <small class="text-muted" id="refresh-count">Diperbarui 0 kali</small>
                         </div>
                     </div>
                 </div>
             </div>
-
-            <div class="card">
-                <h2><i class="fas fa-cloud-rain"></i> Weather Prediction</h2>
-                <div class="data-container">
-                    <div class="data-item">
-                        <span>Next 1 Hour Prediction:</span>
-                        <span id="rain-prediction" class="digital-value">-</span>
-                    </div>
-                    <div class="data-item">
-                        <span>Confidence Level:</span>
-                        <span id="rain-confidence" class="digital-value">-</span>
-                    </div>
-                </div>
-                <div class="loading-spinner" id="prediction-spinner"></div>
-            </div>
-        </div>
-        
-        <div class="chart-container">
-            <h2><i class="fas fa-sun"></i> Light Intensity History</h2>
-            <canvas id="lightChart"></canvas>
-        </div>
-        
-        <div class="chart-container">
-            <h2><i class="fas fa-tint"></i> Rain Sensor History</h2>
-            <canvas id="rainChart"></canvas>
         </div>
     </div>
+    
+    <!-- Floating Refresh Button -->
+    <button class="btn btn-primary rounded-circle p-3" id="refresh-btn">
+        <i class="fas fa-sync-alt"></i>
+    </button>
 
-    <footer>
-        <p>© 2023 Smart Clothesline System. All rights reserved.</p>
-        <p>IoT Innovation Lab</p>
-    </footer>
-
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Variabel untuk simulasi data jika server tidak merespons (digunakan di Render)
-        let useFallbackData = false;
-        let simulatedLDR = 227;
-        let simulatedRain = 1011;
-        let simulatedStatus = 'TERTUTUP';
-        
-        // Theme Toggle Functionality
-        const themeToggle = document.getElementById('theme-toggle');
-        const themeIcon = themeToggle.querySelector('i');
-        
-        function applyTheme() {
-            // Check theme preference from localStorage
-            const currentTheme = localStorage.getItem('theme');
-            const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
+        $(document).ready(function() {
+            let refreshCount = 0;
+            let autoRefresh = true;
+            let refreshTimer;
             
-            // Apply theme based on priority: localStorage, then system preference
-            if (currentTheme === 'dark') {
-                document.documentElement.setAttribute('data-theme', 'dark');
-                themeIcon.className = 'fas fa-sun';
-            } else if (currentTheme === 'light') {
-                document.documentElement.setAttribute('data-theme', 'light');
-                themeIcon.className = 'fas fa-moon';
-            } else if (prefersDarkScheme.matches) {
-                document.documentElement.setAttribute('data-theme', 'dark');
-                themeIcon.className = 'fas fa-sun';
-            }
-        }
-        
-        themeToggle.addEventListener('click', () => {
-            const currentTheme = document.documentElement.getAttribute('data-theme');
-            
-            if (currentTheme === 'dark') {
-                document.documentElement.setAttribute('data-theme', 'light');
-                localStorage.setItem('theme', 'light');
-                themeIcon.className = 'fas fa-moon';
-            } else {
-                document.documentElement.setAttribute('data-theme', 'dark');
-                localStorage.setItem('theme', 'dark');
-                themeIcon.className = 'fas fa-sun';
-            }
-        });
-        
-        // Run on page load
-        applyTheme();
-
-        // Initialize Charts
-        const lightCtx = document.getElementById('lightChart').getContext('2d');
-        const rainCtx = document.getElementById('rainChart').getContext('2d');
-    
-        const chartOptions = {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: { 
-                    beginAtZero: true,
-                    grid: {
-                        color: 'rgba(0, 0, 0, 0.1)'
-                    }
-                },
-                x: { 
-                    display: true,
-                    grid: {
-                        color: 'rgba(0, 0, 0, 0.05)'
-                    }
-                }
-            },
-            plugins: {
-                legend: { 
-                    position: 'top',
-                    labels: {
-                        boxWidth: 15,
-                        usePointStyle: true
-                    }
-                }
-            },
-            elements: {
-                line: {
-                    tension: 0.4
-                },
-                point: {
-                    radius: 3,
-                    hoverRadius: 5
-                }
-            }
-        };
-    
-        const lightChart = new Chart(lightCtx, {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: [{
-                    label: 'Light Intensity (LDR)',
-                    data: [],
-                    borderColor: '#3498db',
-                    backgroundColor: 'rgba(52, 152, 219, 0.2)',
-                    fill: true,
-                    borderWidth: 2
-                }]
-            },
-            options: chartOptions
-        });
-    
-        const rainChart = new Chart(rainCtx, {
-            type: 'line',
-            data: {
-                labels: [],
-                datasets: [{
-                    label: 'Rain Sensor',
-                    data: [],
-                    borderColor: '#e74c3c',
-                    backgroundColor: 'rgba(231, 76, 60, 0.2)',
-                    fill: true,
-                    borderWidth: 2
-                }]
-            },
-            options: chartOptions
-        });
-        
-        // HTTP Polling configuration
-        let dataFetchTimer = null;
-        let reconnectAttempts = 0;
-        const MAX_RETRIES = 5;
-        const RETRY_DELAY = 5000; // 5 seconds
-        const POLLING_INTERVAL = 3000; // 3 seconds
-        
-        // Initialize connection
-        document.addEventListener('DOMContentLoaded', () => {
-            checkConnection();
-            
-            // Also check model status and set up periodic weather predictions
-            checkModelStatus();
-            setInterval(updateWeatherPrediction, 30000);
-        });
-        
-        function checkConnection() {
-            fetch('/check-nodemcu')
-                .then(response => {
-                    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-                    return response.json();
-                })
-                .then(data => {
-                    if (data.status === 'connected' || data.status === 'partial') {
-                        setConnectionStatus(true, data.message);
-                        startDataPolling();
-                    } else {
-                        setConnectionStatus(false, data.message);
-                        useFallbackData = true; // Gunakan data fallback jika tidak terhubung
-                        startDataPolling(); // Tetap polling meskipun tidak terhubung
-                    }
-                })
-                .catch(error => {
-                    console.error('Connection check failed:', error);
-                    setConnectionStatus(false, 'Kesalahan koneksi - menggunakan data fallback');
-                    useFallbackData = true; // Gunakan data fallback jika terjadi error
-                    startDataPolling(); // Tetap polling meskipun terjadi error
-                });
-        }
-        
-        function setConnectionStatus(connected, message) {
-            const statusDot = document.getElementById('connection-dot');
-            const statusText = document.getElementById('connection-text');
-            
-            if (connected) {
-                statusDot.className = 'status-dot status-connected';
-                statusText.innerText = message || 'Terhubung';
-                reconnectAttempts = 0; // Reset retry counter on successful connection
-            } else {
-                statusDot.className = 'status-dot status-disconnected';
-                statusText.innerText = message || 'Terputus';
-            }
-        }
-        
-        function startDataPolling() {
-            // Clear any existing interval
-            if (dataFetchTimer) {
-                clearInterval(dataFetchTimer);
-            }
-            
-            // Get data immediately
+            // Initial data fetch
             fetchData();
+            checkModelStatus();
             
-            // Set up regular polling
-            dataFetchTimer = setInterval(fetchData, POLLING_INTERVAL);
-        }
-        
-        function fetchData() {
-            if (useFallbackData) {
-                // Simulasi variasi data untuk membuat grafik terlihat real-time
-                simulatedLDR = Math.max(100, Math.min(400, simulatedLDR + (Math.random() - 0.5) * 20));
-                simulatedRain = Math.max(900, Math.min(1023, simulatedRain + (Math.random() - 0.5) * 10));
-                
-                const simulatedData = {
-                    ldr: Math.round(simulatedLDR),
-                    rain: Math.round(simulatedRain),
-                    status: simulatedStatus
-                };
-                
-                updateUI(simulatedData);
-                return;
-            }
+            // Start auto refresh
+            startAutoRefresh();
             
-            fetch('/get_data')
-                .then(response => {
-                    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-                    return response.json();
-                })
-                .then(data => {
-                    console.log('Data received:', data);
-                    updateUI(data);
-                })
-                .catch(error => {
-                    console.error('Error fetching data:', error); 
-                    
-                    if (!useFallbackData) {
-                        useFallbackData = true;
-                        setConnectionStatus(false, 'Koneksi ke server data terputus - menggunakan data fallback');
-                        
-                        // Gunakan data simulasi jika terjadi error
-                        const simulatedData = {
-                            ldr: Math.round(simulatedLDR),
-                            rain: Math.round(simulatedRain),
-                            status: simulatedStatus
-                        };
-                        
-                        updateUI(simulatedData);
-                    }
-                });
-        }
-        
-        function updateUI(data) {
-            if (!data || Object.keys(data).length === 0) {
-                console.warn('Empty data received');
-                return;
-            }
+            // Manual refresh button
+            $('#refresh-btn').click(function() {
+                fetchData();
+                animateRefreshButton();
+            });
             
-            // Update values with animation
-            updateElementWithAnimation('ldr-value', data.ldr || '-');
-            
-            // Update rain value with text interpretation
-            const rainValue = data.rain !== undefined ? data.rain : '-';
-            const rainText = rainValue !== '-' ? (rainValue < 500 ? "TERDETEKSI" : "TIDAK ADA") : '-';
-            updateElementWithAnimation('rain-value', rainText);
-            
-            // Update status
-            updateElementWithAnimation('status-value', statusLabels[data.status] || data.status || '-');
-            
-            // Update timestamp
-            const timestamp = new Date().toLocaleTimeString();
-            updateElementWithAnimation('time-value', timestamp);
-            
-            // Update gauges
-            updateGauge('ldr', data.ldr || 0);
-            updateGauge('rain', data.rain || 0);
-            
-            // Add datapoint to charts
-            if (data.ldr !== undefined) {
-                updateChart(lightChart, data.ldr, timestamp);
-            }
-            
-            if (data.rain !== undefined) {
-                updateChart(rainChart, data.rain, timestamp);
-            }
-            
-            // Adjust status UI based on status
-            updateStatusUI(data.status);
-        }
-        
-        function updateElementWithAnimation(elementId, value) {
-            const element = document.getElementById(elementId);
-            if (element) {
-                // Only update if value has changed
-                if (element.textContent !== String(value)) {
-                    element.textContent = value;
-                    element.classList.add('value-update');
-                    setTimeout(() => element.classList.remove('value-update'), 500);
-                }
-            }
-        }
-        
-        function updateStatusUI(status) {
-            let statusClass;
-            
-            switch(status) {
-                case 'TERBUKA':
-                    statusClass = 'status-open';
-                    break;
-                case 'TERTUTUP':
-                    statusClass = 'status-closed';
-                    break;
-                case 'BERGERAK_BUKA':
-                case 'BERGERAK_TUTUP':
-                    statusClass = 'status-moving';
-                    break;
-                case 'ERROR':
-                    statusClass = 'status-error';
-                    break;
-                default:
-                    statusClass = '';
-            }
-            
-            const statusElement = document.getElementById('status-value');
-            
-            // Remove all status classes
-            statusElement.classList.remove('status-open', 'status-closed', 'status-moving', 'status-error');
-            
-            // Add the appropriate class
-            if (statusClass) {
-                statusElement.classList.add(statusClass);
-            }
-        }
-        
-        function updateChart(chart, value, label) {
-            chart.data.labels.push(label);
-            chart.data.datasets[0].data.push(value);
-            
-            if (chart.data.labels.length > 15) {
-                chart.data.labels.shift();
-                chart.data.datasets[0].data.shift();
-            }
-            
-            chart.update();
-        }
-        
-        function updateGauge(type, value) {
-            // Get max value for normalization
-            const max = type === 'ldr' ? 1023 : 1023;
-            const percentage = Math.min(100, Math.max(0, (value / max) * 100));
-            
-            // Update gauge height and value
-            document.getElementById(`${type}-gauge`).style.height = `${percentage}%`;
-            document.getElementById(`${type}-gauge-value`).innerText = value;
-            
-            // Set color based on value
-            let color = 'var(--primary-color)';
-            
-            if (type === 'ldr') {
-                // Colors for light intensity
-                color = percentage > 75 ? '#FFC107' : // Bright yellow
-                       percentage > 50 ? '#4CAF50' : // Green
-                       percentage > 25 ? '#2196F3' : // Blue
-                       '#3F51B5'; // Dark blue
-            } else if (type === 'rain') {
-                // Colors for rain sensor
-                color = percentage > 75 ? '#F44336' : // Red (heavy rain)
-                       percentage > 50 ? '#FF9800' : // Orange
-                       percentage > 25 ? '#2196F3' : // Blue
-                       '#81D4FA'; // Light blue
-            }
-            
-            document.getElementById(`${type}-gauge`).style.backgroundColor = color;
-        }
-        
-        // Format status labels
-        const statusLabels = {
-            'TERTUTUP': 'Retracted',
-            'TERBUKA': 'Extended',
-            'BERGERAK_BUKA': 'Opening...',
-            'BERGERAK_TUTUP': 'Closing...',
-            'ERROR': 'Error'
-        };
-
-        function checkModelStatus() {
-            console.log("Memeriksa status model...");
-            
-            fetch('/check-model-status')
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! Status: ${response.status}`);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    console.log("Status model:", data);
-                    
-                    if (!data.model_trained_flag || !data.model_loaded_in_memory) {
-                        console.warn("Model belum terlatih atau dimuat!");
-                        
-                        if (data.enough_data) {
-                            console.log("Data cukup untuk pelatihan. Mencoba paksa pelatihan...");
-                            forceTrainModel();
-                        } else {
-                            // Tampilkan fallback data untuk prediksi cuaca
-                            updateElementWithAnimation('rain-prediction', "MODEL TIDAK SIAP");
-                            updateElementWithAnimation('rain-confidence', "Menggunakan data historis");
-                        }
-                    } else {
-                        console.log("Model terlatih dan siap digunakan");
-                        updateWeatherPrediction();
-                    }
-                })
-                .catch(error => {
-                    console.error("Error memeriksa status model:", error);
-                    // Tampilkan fallback data saat gagal mengecek model
-                    updateElementWithAnimation('rain-prediction', useFallbackData ? "CERAH" : "ERROR MODEL");
-                    updateElementWithAnimation('rain-confidence', useFallbackData ? "87%" : "N/A");
-                });
-        }
-
-        function forceTrainModel() {
-            console.log("Memulai pelatihan paksa model...");
-            document.getElementById('prediction-spinner').style.display = 'block';
-            
-            fetch('/force-train-model')
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! Status: ${response.status}`);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    console.log("Hasil pelatihan model:", data);
-                    document.getElementById('prediction-spinner').style.display = 'none';
-                    
-                    if (data.status === 'success') {
-                        updateElementWithAnimation('rain-prediction', "MODEL BARU SIAP");
-                        updateElementWithAnimation('rain-confidence', `Akurasi: ${Math.round(data.accuracy * 100)}%`);
-                        
-                        // Update prediksi dengan model yang baru dilatih
-                        setTimeout(updateWeatherPrediction, 1000);
-                    } else {
-                        // Jika gagal, gunakan prediksi fallback
-                        updateElementWithAnimation('rain-prediction', "CERAH");
-                        updateElementWithAnimation('rain-confidence', "85%");
-                    }
-                })
-                .catch(error => {
-                    console.error("Error melatih model:", error);
-                    document.getElementById('prediction-spinner').style.display = 'none';
-                    
-                    // Jika error, gunakan prediksi fallback
-                    updateElementWithAnimation('rain-prediction', "CERAH");
-                    updateElementWithAnimation('rain-confidence', "85%");
-                });
-        }
-
-        function updateWeatherPrediction() {
-            console.log("Memperbarui prediksi cuaca...");
-            
-            // Show spinner while fetching prediction
-            document.getElementById('prediction-spinner').style.display = 'block';
-            
-            // Jika menggunakan data simulasi karena di Render, gunakan prediksi fallback
-            if (useFallbackData) {
+            // Refresh prediction
+            $('#refresh-prediction-btn').click(function() {
+                predictWeather();
+                $(this).prop('disabled', true);
                 setTimeout(() => {
-                    document.getElementById('prediction-spinner').style.display = 'none';
-                    updateElementWithAnimation('rain-prediction', "CERAH");
-                    updateElementWithAnimation('rain-confidence', "87%");
-                    
-                    const predictionElement = document.getElementById('rain-prediction');
-                    const confidenceElement = document.getElementById('rain-confidence');
-                    predictionElement.style.color = '#2ecc71'; // Green for clear weather
-                    confidenceElement.style.color = '#2ecc71';
-                }, 500);
-                return;
+                    $(this).prop('disabled', false);
+                }, 3000);
+            });
+            
+            function startAutoRefresh() {
+                if (refreshTimer) clearInterval(refreshTimer);
+                refreshTimer = setInterval(fetchData, 5000); // Refresh every 5 seconds
             }
             
-            fetch('/predict-weather')
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! Status: ${response.status}`);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    console.log("Data prediksi cuaca diterima:", data);
-                    document.getElementById('prediction-spinner').style.display = 'none';
-                    
-                    const predictionElement = document.getElementById('rain-prediction');
-                    const confidenceElement = document.getElementById('rain-confidence');
-                    
-                    if (data.error) {
-                        console.warn("Error prediksi cuaca:", data.error);
-                        // Gunakan fallback data untuk tampilan
-                        updateElementWithAnimation('rain-prediction', "CERAH");
-                        updateElementWithAnimation('rain-confidence', "85%");
-                        predictionElement.style.color = '#2ecc71'; // Green for clear
-                        confidenceElement.style.color = '#2ecc71';
-                        return;
-                    }
-                    
-                    if (data.will_rain !== undefined && data.probability !== undefined) {
-                        // Update prediction display
-                        updateElementWithAnimation('rain-prediction', data.will_rain ? 'HUJAN' : 'CERAH');
-                        const confidencePercent = Math.round(data.probability * 100);
-                        updateElementWithAnimation('rain-confidence', `${confidencePercent}%`);
+            function fetchData() {
+                $.ajax({
+                    url: '/get_data',
+                    type: 'GET',
+                    dataType: 'json',
+                    success: function(data) {
+                        updateUI(data);
+                        refreshCount++;
+                        $('#refresh-count').text(`Diperbarui ${refreshCount} kali`);
                         
-                        // Set color based on prediction
-                        predictionElement.style.color = data.will_rain ? '#e74c3c' : '#2ecc71';
-                        confidenceElement.style.color = data.will_rain ? '#e74c3c' : '#2ecc71';
-                    } else {
-                        // Gunakan fallback data untuk tampilan
-                        updateElementWithAnimation('rain-prediction', "CERAH");
-                        updateElementWithAnimation('rain-confidence', "85%");
-                        predictionElement.style.color = '#2ecc71';
-                        confidenceElement.style.color = '#2ecc71';
+                        const now = new Date();
+                        $('#last-update').text(
+                            `${now.getHours().toString().padStart(2, '0')}:` +
+                            `${now.getMinutes().toString().padStart(2, '0')}:` +
+                            `${now.getSeconds().toString().padStart(2, '0')}`
+                        );
+                    },
+                    error: function(xhr, status, error) {
+                        console.error("Error fetching data:", error);
                     }
-                })
-                .catch(error => {
-                    console.error("Error fetching weather prediction:", error);
-                    document.getElementById('prediction-spinner').style.display = 'none';
-                    
-                    // Tampilkan fallback data jika terjadi error koneksi
-                    updateElementWithAnimation('rain-prediction', "CERAH");
-                    updateElementWithAnimation('rain-confidence', "85%");
-                    
-                    const predictionElement = document.getElementById('rain-prediction');
-                    const confidenceElement = document.getElementById('rain-confidence');
-                    predictionElement.style.color = '#2ecc71';
-                    confidenceElement.style.color = '#2ecc71';
                 });
-        }
+            }
+            
+            function checkModelStatus() {
+                $.ajax({
+                    url: '/check-model-status',
+                    type: 'GET',
+                    dataType: 'json',
+                    success: function(data) {
+                        if (data.model_trained_flag) {
+                            $('#model-status').html('<span class="badge bg-success">Model Siap</span>');
+                            predictWeather();
+                        } else {
+                            $('#model-status').html('<span class="badge bg-warning">Model Belum Dilatih</span>');
+                            $('#prediction-desc').text('Model prediksi belum dilatih');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error("Error checking model status:", error);
+                        $('#model-status').html('<span class="badge bg-danger">Error</span>');
+                    }
+                });
+            }
+            
+            function predictWeather() {
+                $.ajax({
+                    url: '/predict-weather',
+                    type: 'GET',
+                    dataType: 'json',
+                    success: function(data) {
+                        if (data.error) {
+                            $('#prediction-desc').text(`Error: ${data.error}`);
+                            return;
+                        }
+                        
+                        const probability = Math.round(data.probability * 100);
+                        $('#prediction-progress').css('width', `${probability}%`);
+                        
+                        if (data.will_rain) {
+                            $('#prediction-value').html('<i class="fas fa-cloud-showers-heavy me-2"></i>HUJAN');
+                            $('#prediction-desc').text(`Kemungkinan hujan dalam 1 jam: ${probability}%`);
+                            $('#prediction-progress').removeClass('bg-success').addClass('bg-danger');
+                        } else {
+                            $('#prediction-value').html('<i class="fas fa-sun me-2"></i>CERAH');
+                            $('#prediction-desc').text(`Kemungkinan hujan dalam 1 jam: ${probability}%`);
+                            $('#prediction-progress').removeClass('bg-danger').addClass('bg-success');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error("Error predicting weather:", error);
+                        $('#prediction-desc').text("Error mendapatkan prediksi");
+                    }
+                });
+            }
+            
+            function updateUI(data) {
+                // Update Light Sensor
+                $('#ldr-value').text(data.ldr || '--');
+                const ldrPercent = Math.min(100, Math.max(0, (data.ldr / 1000) * 100));
+                $('#ldr-progress').css('width', `${ldrPercent}%`);
+                
+                // Update Rain Sensor
+                $('#rain-value').text(data.rain || '--');
+                const rainPercent = Math.min(100, Math.max(0, ((1024 - data.rain) / 1024) * 100));
+                $('#rain-progress').css('width', `${rainPercent}%`);
+                
+                // Update Status
+                const status = data.status || 'UNKNOWN';
+                $('#status-value').text(status);
+                
+                if (status === 'TERBUKA') {
+                    $('#status-indicator').removeClass('status-closed').addClass('status-open');
+                    $('#status-desc').text('Jemuran sedang dalam keadaan terbuka/keluar');
+                } else if (status === 'TERTUTUP') {
+                    $('#status-indicator').removeClass('status-open').addClass('status-closed');
+                    $('#status-desc').text('Jemuran sedang dalam keadaan tertutup/masuk');
+                } else {
+                    $('#status-indicator').removeClass('status-open status-closed');
+                    $('#status-desc').text('Status tidak diketahui');
+                }
+                
+                // Update Rotation
+                $('#rotation-value').text(data.rotation || '--');
+                const rotationPercent = Math.min(100, Math.max(0, (data.rotation / 360) * 100));
+                $('#rotation-progress').css('width', `${rotationPercent}%`);
+            }
+            
+            function animateRefreshButton() {
+                const btn = $('#refresh-btn i');
+                btn.addClass('fa-spin');
+                setTimeout(() => {
+                    btn.removeClass('fa-spin');
+                }, 1000);
+            }
+        });
     </script>
 </body>
 </html>
