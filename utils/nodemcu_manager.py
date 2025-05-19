@@ -1,6 +1,7 @@
 """
 NodeMCU interface utilities for Smart Clothesline System Application
 Handles communication with NodeMCU ESP8266 controller via HTTP polling
+Supports both local and Render.com cloud endpoints
 """
 
 import requests
@@ -22,9 +23,37 @@ latest_polled_data = None
 polling_thread = None
 polling_lock = threading.Lock()
 
+# Fungsi utilitas untuk memilih endpoint yang tepat
+def get_api_endpoint(path=""):
+    """
+    Determines the appropriate API endpoint based on whether we're running locally or on Render
+    
+    Args:
+        path (str): The API path to append to the base URL
+    
+    Returns:
+        str: The complete API URL
+    """
+    # Cek apakah kita perlu menggunakan endpoint Render
+    use_render = config.NODEMCU_CONFIG.get('use_render', False)
+    
+    # Jika use_render True atau tidak ada koneksi ke NodeMCU lokal (base_url adalah localhost), gunakan Render
+    if use_render or not config.NODEMCU_CONFIG['base_url'] or config.NODEMCU_CONFIG['base_url'] == 'http://localhost/':
+        # Gunakan endpoint Render
+        render_url = config.NODEMCU_CONFIG.get('render_url', 'https://iot-clothesline-system.onrender.com')
+        endpoint = f"{render_url}/api/{path}" if path else f"{render_url}/api/data"
+        print(f"Using Render endpoint: {endpoint}")
+        return endpoint
+    else:
+        # Gunakan endpoint lokal
+        endpoint = f"{config.NODEMCU_CONFIG['base_url']}/api/{path}" if path else f"{config.NODEMCU_CONFIG['base_url']}/api/data"
+        print(f"Using local endpoint: {endpoint}")
+        return endpoint
+
 def get_nodemcu_data(force_refresh=False):
     """
     Get sensor data from NodeMCU via API with improved error handling
+    Supports both local NodeMCU and Render cloud endpoints
     
     Args:
         force_refresh (bool): If True, forces a new request instead of using cached data
@@ -48,10 +77,8 @@ def get_nodemcu_data(force_refresh=False):
                 pass
     
     try:
-        # Check if base URL is actually available
-        if not config.NODEMCU_CONFIG['base_url'] or config.NODEMCU_CONFIG['base_url'] == 'http://localhost/':
-            print("NodeMCU URL not configured or set to localhost.")
-            return None
+        # Get the appropriate endpoint URL (either local or Render)
+        endpoint_url = get_api_endpoint()
         
         start_time = time.time()
         
@@ -63,7 +90,7 @@ def get_nodemcu_data(force_refresh=False):
             try:
                 # Add proper error handling for timeouts and connection errors
                 response = requests.get(
-                    f"{config.NODEMCU_CONFIG['base_url']}/api/data", 
+                    endpoint_url, 
                     timeout=config.NODEMCU_CONFIG['timeout']
                 )
                 
@@ -77,7 +104,7 @@ def get_nodemcu_data(force_refresh=False):
                         data['timestamp'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     
                     # Log data for debugging
-                    print(f"Data received from NodeMCU: {json.dumps(data, indent=2)}")
+                    print(f"Data received from endpoint: {json.dumps(data, indent=2)}")
                     print(f"Response time: {response_time:.2f}s")
                     
                     # Log successful polling to the database
@@ -87,10 +114,8 @@ def get_nodemcu_data(force_refresh=False):
                     with polling_lock:
                         latest_polled_data = data
                     
-                    # PERBAIKAN: Simpan data ke database dengan parameter yang benar
+                    # Simpan data ke database dengan parameter yang benar
                     try:
-                        from utils.database import save_sensor_data
-                        
                         save_sensor_data(
                             data.get('ldr', 0),
                             data.get('rain', 0),
@@ -102,7 +127,7 @@ def get_nodemcu_data(force_refresh=False):
                     
                     return data
                 else:
-                    print(f"Error getting data from NodeMCU: HTTP {response.status_code}")
+                    print(f"Error getting data from endpoint: HTTP {response.status_code}")
                     if retry < max_retries - 1:  # Don't sleep on the last retry
                         time.sleep(retry_delay)
                     
@@ -120,7 +145,7 @@ def get_nodemcu_data(force_refresh=False):
                     
     except Exception as e:
         response_time = time.time() - start_time
-        error_msg = f"Unexpected error communicating with NodeMCU: {e}"
+        error_msg = f"Unexpected error communicating with endpoint: {e}"
         print(error_msg)
         config.log_polling_event(False, response_time, error_msg)
         return None
@@ -145,7 +170,7 @@ def send_command_to_nodemcu(action):
             print("Warning: Unable to get current NodeMCU status, but will still try to send command")
         else:
             # Check if the Arduino is connected to the NodeMCU
-            if not current_data.get("connected", False):
+            if not current_data.get("connected", False) and not config.NODEMCU_CONFIG.get('use_render', False):
                 error_msg = "Arduino is not connected to NodeMCU. Cannot send command."
                 print(f"ERROR: {error_msg}")
                 return {"success": False, "message": error_msg}
@@ -159,6 +184,9 @@ def send_command_to_nodemcu(action):
                 print("Clothesline is already closed, no need to send command")
                 return {"success": True, "message": "Clothesline is already closed"}
         
+        # Get the appropriate control endpoint URL
+        control_endpoint = get_api_endpoint("control")
+        
         # Implement retry logic
         max_retries = config.APP_CONFIG.get('max_retries', 3)
         retry_delay = config.APP_CONFIG.get('retry_delay', 2)
@@ -166,7 +194,7 @@ def send_command_to_nodemcu(action):
         for retry in range(max_retries):
             try:
                 # Construct the URL
-                url = f"{config.NODEMCU_CONFIG['base_url']}/api/control"
+                url = control_endpoint
                 print(f"Request URL: {url}")
                 print(f"Request params: {{'action': {action}}}")
                 
@@ -227,9 +255,13 @@ def send_command_to_nodemcu(action):
 def check_nodemcu_connection():
     """Check if NodeMCU is available and reachable with improved error handling"""
     try:
-        # First check if the URL is properly configured
-        if not config.NODEMCU_CONFIG['base_url'] or config.NODEMCU_CONFIG['base_url'] == 'http://localhost/':
-            return {"status": "error", "message": "NodeMCU URL not configured or set to localhost"}, 500
+        # Get the appropriate status endpoint URL
+        status_endpoint = get_api_endpoint("status")
+        
+        # If we're using Render, return a special status
+        if config.NODEMCU_CONFIG.get('use_render', False):
+            print("Using Render cloud mode - assuming NodeMCU connection is available")
+            return {"status": "partial", "message": "Running in cloud mode via Render"}, 200
         
         # Implement retry logic
         max_retries = config.APP_CONFIG.get('max_retries', 3)
@@ -238,7 +270,7 @@ def check_nodemcu_connection():
         for retry in range(max_retries):
             try:
                 response = requests.get(
-                    f"{config.NODEMCU_CONFIG['base_url']}/api/status", 
+                    status_endpoint, 
                     timeout=config.NODEMCU_CONFIG['timeout']
                 )
                 
@@ -289,17 +321,17 @@ def check_auto_conditions():
             
         print("Auto mode is enabled, checking conditions...")
             
-        # Try to get data from NodeMCU first (real-time)
-        nodemcu_data = get_nodemcu_data()
+        # Try to get data from endpoint first (real-time)
+        endpoint_data = get_nodemcu_data()
         
-        if nodemcu_data and nodemcu_data.get('connected', False):
-            print("Using real-time data from NodeMCU")
-            ldr = nodemcu_data.get('ldr', 0)
-            rain = nodemcu_data.get('rain', 0)
-            status = nodemcu_data.get('status', '').upper()
+        if endpoint_data:
+            print("Using real-time data from endpoint")
+            ldr = endpoint_data.get('ldr', 0)
+            rain = endpoint_data.get('rain', 0)
+            status = endpoint_data.get('status', '').upper()
         else:
-            # Fall back to database data if NodeMCU is not available
-            print("NodeMCU not available, using database data")
+            # Fall back to database data if endpoint is not available
+            print("Endpoint not available, using database data")
             row = get_latest_data()
             
             if not row:
@@ -400,7 +432,7 @@ def polling_worker():
             # Record the current time
             start_time = time.time()
             
-            # Get data from NodeMCU
+            # Get data from endpoint
             get_nodemcu_data(force_refresh=True)
             
             # Check auto conditions if enabled
@@ -424,21 +456,29 @@ def sync_data_with_server():
     This function should be called periodically to ensure data on the server is up-to-date
     """
     try:
-        # Get the latest data from NodeMCU
+        # Get the latest data from endpoint
         data = get_nodemcu_data()
         
         if not data:
-            print("No data available from NodeMCU to sync with server")
-            return {"success": False, "message": "No data available from NodeMCU"}
+            print("No data available from endpoint to sync with server")
+            return {"success": False, "message": "No data available from endpoint"}
+        
+        # If we're already using Render, no need to sync
+        if config.NODEMCU_CONFIG.get('use_render', False):
+            return {"success": True, "message": "Already using Render cloud endpoint, no sync needed"}
             
         # Here you would implement the code to send the data to your render.com server
-        # Example:
-        # server_url = "https://iot-clothesline-system.onrender.com/api/data/update"
-        # response = requests.post(server_url, json=data, timeout=10)
-        # return {"success": response.status_code == 200, "message": "Data synced with server"}
+        render_url = config.NODEMCU_CONFIG.get('render_url', 'https://iot-clothesline-system.onrender.com')
+        server_url = f"{render_url}/api/data/update"
         
-        # For now, just return success
-        return {"success": True, "message": "Data sync functionality not implemented yet"}
+        try:
+            response = requests.post(server_url, json=data, timeout=10)
+            return {
+                "success": response.status_code == 200, 
+                "message": f"Data synced with server (status {response.status_code})"
+            }
+        except Exception as e:
+            return {"success": False, "message": f"Error syncing with Render: {str(e)}"}
         
     except Exception as e:
         print(f"Error syncing data with server: {e}")
