@@ -126,10 +126,17 @@ def nodemcu_reader():
 # =============================================
 # FLASK ROUTES
 # =============================================
+# Perbaiki route favicon
 @app.route('/favicon.ico')
 def favicon():
     return send_from_directory(os.path.join(app.root_path, 'static'),
                                'favicon.ico', mimetype='image/vnd.microsoft.icon')
+
+# Tambahkan route untuk /get (mengarahkan ke /get_data)
+@app.route('/get')
+def get_redirect():
+    """Endpoint untuk menangani request ke /get yang salah, alihkan ke /get_data"""
+    return get_data()
 
 @app.route('/')
 def index():
