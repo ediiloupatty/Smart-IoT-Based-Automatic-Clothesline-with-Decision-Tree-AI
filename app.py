@@ -7,6 +7,8 @@ import threading
 import time
 import os
 from flask_cors import CORS
+from datetime import datetime
+import sqlite3
 
 # Import configuration and utilities
 import config
@@ -129,7 +131,6 @@ def nodemcu_reader():
 # Perbaiki route favicon
 @app.route('/favicon.ico')
 def favicon():
-    # Opsi 1: Menggunakan send_from_directory jika tersedia
     try:
         return send_from_directory(os.path.join(app.root_path, 'static'),
                                   'favicon.ico', mimetype='image/vnd.microsoft.icon')
