@@ -2,7 +2,7 @@
 Fixed Flask app for Machine Learning Automated Clothesline System
 """
 
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request,send_from_directory
 import threading
 import time
 import os
@@ -129,8 +129,12 @@ def nodemcu_reader():
 # Perbaiki route favicon
 @app.route('/favicon.ico')
 def favicon():
-    return send_from_directory(os.path.join(app.root_path, 'static'),
-                               'favicon.ico', mimetype='image/vnd.microsoft.icon')
+    # Opsi 1: Menggunakan send_from_directory jika tersedia
+    try:
+        return send_from_directory(os.path.join(app.root_path, 'static'),
+                                  'favicon.ico', mimetype='image/vnd.microsoft.icon')
+    except NameError:
+        return '', 204 
 
 # Tambahkan route untuk /get (mengarahkan ke /get_data)
 @app.route('/get')
