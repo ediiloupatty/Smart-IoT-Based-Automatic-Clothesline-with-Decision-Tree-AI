@@ -30,6 +30,7 @@
             margin-top: 10px;
             border-radius: 8px;
             transition: all 0.3s;
+            color: white; /* Menambahkan ini untuk konsistensi warna teks */
         }
         .control-button:hover {
             transform: scale(1.05);
@@ -37,14 +38,17 @@
         .btn-open {
             background-color: #28a745;
             border-color: #28a745;
+            color: white;
         }
         .btn-close {
             background-color: #dc3545;
             border-color: #dc3545;
+            color: white;
         }
         .btn-stop {
             background-color: #6c757d;
             border-color: #6c757d;
+            color: white;
         }
         .status-indicator {
             width: 20px;
@@ -73,6 +77,14 @@
         .command-history {
             max-height: 300px;
             overflow-y: auto;
+        }
+        .controls-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .controls-row .col-md-4 {
+            margin-bottom: 10px;
         }
     </style>
 </head>
@@ -124,14 +136,14 @@
                             <div class="mt-2" id="status-desc">Memuat data...</div>
                         </div>
                         
-                        <div class="row">
+                        <div class="row g-2">
                             <div class="col-md-4">
                                 <button class="btn btn-success control-button btn-open" id="open-btn">
                                     <i class="fas fa-door-open me-2"></i>BUKA
                                 </button>
                             </div>
                             <div class="col-md-4">
-                                <button class="btn btn-danger control-button btn-close" id="close-btn">
+                                <button class="btn btn-danger control-button" id="close-btn">
                                     <i class="fas fa-door-closed me-2"></i>TUTUP
                                 </button>
                             </div>
