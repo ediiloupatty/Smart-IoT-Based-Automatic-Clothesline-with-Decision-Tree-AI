@@ -4,7 +4,8 @@ Contains all configuration parameters and settings
 """
 
 import os
-import sqlite3
+import psycopg2
+from psycopg2 import sql
 import time
 import platform
 from datetime import datetime
@@ -26,13 +27,15 @@ IS_PRODUCTION = os.environ.get('RENDER', False)
 
 # Database configuration
 if IS_PRODUCTION:
-    # In production, use a directory that persists
-    DATABASE = os.environ.get('DATABASE_URL', 'sqlite:///data/sensor_data.db').replace('sqlite:///', '')
+    # Use PostgreSQL in production (Render)
+    DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://clothesline_user:HEnc7bShp1X3Q4nSCB2s8RMeO7lMas3c@dpg-d0q7k87diees738q5tcg-a.oregon-postgres.render.com/clothesline_data')
+    USE_POSTGRESQL = True
 else:
+    # Keep SQLite for local development
     DATABASE = 'data/sensor_data.db'
-
-# Make sure the data directory exists
-os.makedirs(os.path.dirname(DATABASE), exist_ok=True)
+    USE_POSTGRESQL = False
+    # Make sure the data directory exists for SQLite
+    os.makedirs(os.path.dirname(DATABASE), exist_ok=True)
 
 # NodeMCU Configuration
 NODEMCU_CONFIG = {
@@ -68,43 +71,89 @@ threads_running = True
 last_auto_command_time = 0
 last_poll_time = 0
 
+# Database connection function
+def get_db_connection():
+    """Get database connection based on environment"""
+    if USE_POSTGRESQL:
+        return psycopg2.connect(DATABASE_URL)
+    else:
+        import sqlite3
+        return sqlite3.connect(DATABASE)
+
 # Database functions
 def init_db():
     """Initialize database tables if they don't exist"""
     try:
-        conn = sqlite3.connect(DATABASE)
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS sensor_data (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                timestamp DATETIME,
-                ldr INTEGER,
-                rain INTEGER,
-                status TEXT,
-                rotation INTEGER
-            )
-        ''')
+        conn = get_db_connection()
+        cursor = conn.cursor()
         
-        # Create settings table if it doesn't exist
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS settings (
-                id INTEGER PRIMARY KEY,
-                key TEXT UNIQUE,
-                value TEXT
-            )
-        ''')
-        
-        # Create polling_log table to track HTTP polling
-        conn.execute('''
-            CREATE TABLE IF NOT EXISTS polling_log (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                timestamp DATETIME,
-                success BOOLEAN,
-                response_time FLOAT,
-                message TEXT
-            )
-        ''')
+        if USE_POSTGRESQL:
+            # PostgreSQL table creation
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS sensor_data (
+                    id SERIAL PRIMARY KEY,
+                    timestamp TIMESTAMP,
+                    ldr INTEGER,
+                    rain INTEGER,
+                    status TEXT,
+                    rotation INTEGER
+                )
+            ''')
+            
+            # Create settings table if it doesn't exist
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS settings (
+                    id SERIAL PRIMARY KEY,
+                    key TEXT UNIQUE,
+                    value TEXT
+                )
+            ''')
+            
+            # Create polling_log table to track HTTP polling
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS polling_log (
+                    id SERIAL PRIMARY KEY,
+                    timestamp TIMESTAMP,
+                    success BOOLEAN,
+                    response_time FLOAT,
+                    message TEXT
+                )
+            ''')
+        else:
+            # SQLite table creation (for local development)
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS sensor_data (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp DATETIME,
+                    ldr INTEGER,
+                    rain INTEGER,
+                    status TEXT,
+                    rotation INTEGER
+                )
+            ''')
+            
+            # Create settings table if it doesn't exist
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS settings (
+                    id INTEGER PRIMARY KEY,
+                    key TEXT UNIQUE,
+                    value TEXT
+                )
+            ''')
+            
+            # Create polling_log table to track HTTP polling
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS polling_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp DATETIME,
+                    success BOOLEAN,
+                    response_time FLOAT,
+                    message TEXT
+                )
+            ''')
         
         conn.commit()
+        cursor.close()
         conn.close()
         print("Database initialized successfully")
     except Exception as e:
@@ -113,11 +162,21 @@ def init_db():
 def save_setting(key, value):
     """Save a setting to the database"""
     try:
-        conn = sqlite3.connect(DATABASE)
-        conn.execute('''
-            INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)
-        ''', (key, str(value)))
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        if USE_POSTGRESQL:
+            cursor.execute('''
+                INSERT INTO settings (key, value) VALUES (%s, %s)
+                ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+            ''', (key, str(value)))
+        else:
+            cursor.execute('''
+                INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)
+            ''', (key, str(value)))
+        
         conn.commit()
+        cursor.close()
         conn.close()
         print(f"Setting saved: {key}={value}")
         return True
@@ -128,10 +187,18 @@ def save_setting(key, value):
 def load_setting(key, default=None):
     """Load a setting from the database"""
     try:
-        conn = sqlite3.connect(DATABASE)
-        cursor = conn.execute('SELECT value FROM settings WHERE key = ?', (key,))
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        if USE_POSTGRESQL:
+            cursor.execute('SELECT value FROM settings WHERE key = %s', (key,))
+        else:
+            cursor.execute('SELECT value FROM settings WHERE key = ?', (key,))
+        
         row = cursor.fetchone()
+        cursor.close()
         conn.close()
+        
         if row:
             print(f"Setting loaded: {key}={row[0]}")
             return row[0]
@@ -174,12 +241,22 @@ def load_all_settings():
 def log_polling_event(success, response_time, message=""):
     """Log HTTP polling events to the database"""
     try:
-        conn = sqlite3.connect(DATABASE)
-        conn.execute('''
-            INSERT INTO polling_log (timestamp, success, response_time, message) 
-            VALUES (?, ?, ?, ?)
-        ''', (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), success, response_time, message))
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        if USE_POSTGRESQL:
+            cursor.execute('''
+                INSERT INTO polling_log (timestamp, success, response_time, message) 
+                VALUES (%s, %s, %s, %s)
+            ''', (datetime.now(), success, response_time, message))
+        else:
+            cursor.execute('''
+                INSERT INTO polling_log (timestamp, success, response_time, message) 
+                VALUES (?, ?, ?, ?)
+            ''', (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), success, response_time, message))
+        
         conn.commit()
+        cursor.close()
         conn.close()
     except Exception as e:
         print(f"Error logging polling event: {str(e)}")
@@ -187,7 +264,11 @@ def log_polling_event(success, response_time, message=""):
 # Print system info
 print(f"System: {platform.system()} {platform.release()}")
 print(f"Python: {platform.python_version()}")
-print(f"Database path: {os.path.abspath(DATABASE)}")
+if USE_POSTGRESQL:
+    print(f"Database: PostgreSQL (Production)")
+    print(f"Database URL: {DATABASE_URL}")
+else:
+    print(f"Database path: {os.path.abspath(DATABASE)}")
 print(f"Production mode: {IS_PRODUCTION}")
 print(f"Polling mode: HTTP polling (interval: {Config.POLLING_INTERVAL}s)")
 

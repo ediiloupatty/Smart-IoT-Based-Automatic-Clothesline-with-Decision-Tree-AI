@@ -9,6 +9,7 @@ import os
 from flask_cors import CORS
 from datetime import datetime
 import sqlite3
+import psycopg2
 
 # Import configuration and utilities
 import config
@@ -79,17 +80,31 @@ def nodemcu_reader():
                 # Save simulated data to database with proper connection handling
                 conn = None
                 try:
-                    conn = sqlite3.connect(config.DATABASE, timeout=30)
-                    conn.execute("PRAGMA busy_timeout = 5000")  # Set busy timeout
-                    conn.execute('''
-                        INSERT INTO sensor_data (timestamp, ldr, rain, status, rotation)
-                        VALUES (?, ?, ?, ?, ?)
-                    ''', (datetime.now().strftime('%Y-%m-%d %H:%M:%S'), 
-                          simulated_data['ldr'], 
-                          simulated_data['rain'], 
-                          simulated_data['status'], 
-                          simulated_data['rotation']))
+                    conn = config.get_db_connection()
+                    cursor = conn.cursor()
+                    timestamp = datetime.now()
+                    
+                    if config.USE_POSTGRESQL:
+                        cursor.execute('''
+                            INSERT INTO sensor_data (timestamp, ldr, rain, status, rotation)
+                            VALUES (%s, %s, %s, %s, %s)
+                        ''', (timestamp, 
+                              simulated_data['ldr'], 
+                              simulated_data['rain'], 
+                              simulated_data['status'], 
+                              simulated_data['rotation']))
+                    else:
+                        cursor.execute('''
+                            INSERT INTO sensor_data (timestamp, ldr, rain, status, rotation)
+                            VALUES (?, ?, ?, ?, ?)
+                        ''', (timestamp.strftime('%Y-%m-%d %H:%M:%S'), 
+                              simulated_data['ldr'], 
+                              simulated_data['rain'], 
+                              simulated_data['status'], 
+                              simulated_data['rotation']))
+                    
                     conn.commit()
+                    cursor.close()
                     print("Saved simulated data to database")
                 except Exception as db_err:
                     print(f"Database error: {db_err}")
