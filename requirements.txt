@@ -11,3 +11,4 @@ flask_socketio==5.3.0
 flask-cors==3.0.10
 gevent==22.10.2
 gevent-websocket==0.10.1
+psycopg2-binary==2.9.7

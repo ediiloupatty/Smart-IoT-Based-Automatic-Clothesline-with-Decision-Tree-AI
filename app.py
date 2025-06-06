@@ -234,19 +234,92 @@ def check_data_count():
 
 @app.route('/send_command', methods=['POST', 'OPTIONS'])
 def send_command():
+    """Fixed send_command endpoint for Render deployment"""
     if request.method == 'OPTIONS':
         response = app.make_default_options_response()
         return response
         
     try:
-        command = request.json.get('command')
-        if command in ["open", "close", "stop"]:
-            result = send_command_to_nodemcu(command)
-            return jsonify({'status': 'success', 'message': result.get('message', 'Command sent')})
+        print(f"\n=== SEND COMMAND REQUEST ===")
+        print(f"Request method: {request.method}")
+        print(f"Request headers: {dict(request.headers)}")
+        print(f"Request data: {request.get_data()}")
+        
+        # Handle both JSON and form data
+        if request.is_json:
+            command_data = request.get_json()
+            command = command_data.get('command') if command_data else None
         else:
-            return jsonify({'status': 'error', 'message': 'Invalid command'}), 400
+            command = request.form.get('command')
+        
+        print(f"Extracted command: {command}")
+        
+        if not command:
+            error_msg = "No command provided in request"
+            print(f"ERROR: {error_msg}")
+            return jsonify({'status': 'error', 'message': error_msg}), 400
+        
+        if command not in ["open", "close", "stop"]:
+            error_msg = f"Invalid command: {command}. Must be 'open', 'close', or 'stop'"
+            print(f"ERROR: {error_msg}")
+            return jsonify({'status': 'error', 'message': error_msg}), 400
+        
+        # Handle 'stop' command (not sent to NodeMCU, just return success)
+        if command == "stop":
+            print("Stop command received - returning success without sending to NodeMCU")
+            return jsonify({'status': 'success', 'message': 'Stop command processed'})
+        
+        print(f"Sending {command} command to NodeMCU...")
+        
+        # Set a timeout for the entire operation to prevent worker timeout
+        import signal
+        
+        def timeout_handler(signum, frame):
+            raise TimeoutError("Command operation timed out")
+        
+        # For Render, use shorter timeout to prevent worker timeout
+        if 'RENDER' in os.environ:
+            timeout_seconds = 15  # 15 seconds max for Render
+        else:
+            timeout_seconds = 30  # 30 seconds for local
+        
+        signal.signal(signal.SIGALRM, timeout_handler)
+        signal.alarm(timeout_seconds)
+        
+        try:
+            result = send_command_to_nodemcu(command)
+            signal.alarm(0)  # Cancel the alarm
+            
+            print(f"Command result: {result}")
+            
+            if result.get('success', False):
+                return jsonify({
+                    'status': 'success', 
+                    'message': result.get('message', f'{command.title()} command sent successfully')
+                })
+            else:
+                return jsonify({
+                    'status': 'error', 
+                    'message': result.get('message', f'Failed to send {command} command')
+                }), 500
+                
+        except TimeoutError:
+            signal.alarm(0)  # Cancel the alarm
+            error_msg = f"Command {command} timed out after {timeout_seconds} seconds"
+            print(f"ERROR: {error_msg}")
+            return jsonify({'status': 'error', 'message': error_msg}), 500
+        except Exception as e:
+            signal.alarm(0)  # Cancel the alarm
+            raise e
+        
     except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)}), 500
+        error_msg = f"Unexpected error in send_command: {str(e)}"
+        print(f"ERROR: {error_msg}")
+        import traceback
+        print(traceback.format_exc())
+        return jsonify({'status': 'error', 'message': error_msg}), 500
+    finally:
+        print("=== SEND COMMAND REQUEST COMPLETE ===\n")
 
 @app.route('/train-model', methods=['POST', 'OPTIONS'])
 def handle_train():
