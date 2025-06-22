@@ -55,7 +55,3 @@ Kontribusi sangat terbuka! Silakan fork repo ini, lakukan perubahan, dan buat pu
 ## Lisensi
 
 Kelompok 3
-
----
-
-> **Note:** Silakan ubah bagian-bagian README ini sesuai dengan detail teknis, cara instalasi, dan penggunaan project aslimu
