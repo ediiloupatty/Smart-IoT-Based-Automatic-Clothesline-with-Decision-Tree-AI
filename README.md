@@ -1,57 +1,59 @@
-# IoT Clothesline System
+# Smart Clothesline Automation Using IoT & Decision Tree Classifier
 
-Sistem jemuran pintar berbasis Internet of Things (IoT) yang dapat memonitor dan mengontrol jemuran pakaian secara otomatis menggunakan sensor dan perangkat IoT.
+An Internet of Things (IoT)-based smart clothesline system with AI Machine Learning (Decision Tree Classifier) for weather prediction and fully automated clothesline control.
 
-## Fitur
+## Features
 
-- **Monitoring Cuaca**: Mendeteksi kondisi cuaca (hujan/cerah) secara otomatis.
-- **Otomatisasi Jemuran**: Menggerakkan jemuran masuk/keluar sesuai kondisi cuaca.
-- **Kontrol Jarak Jauh**: Kontrol jemuran melalui aplikasi web atau perangkat mobile.
-- **Notifikasi**: Memberikan peringatan ke pengguna jika terjadi perubahan cuaca ekstrem.
-- **Antarmuka Web**: Tersedia dashboard berbasis HTML/CSS untuk monitoring dan kontrol.
+* **Weather Monitoring** – Automatically detects rainy or sunny conditions.
+* **Automatic Clothesline Movement** – Extends/retracts clothesline based on weather predictions.
+* **Remote Control** – Operate the clothesline via web or mobile devices.
+* **AI Weather Prediction** – Uses Decision Tree Classifier to analyze sensor data.
+* **Notifications** – Alerts users in case of extreme weather changes.
+* **Web Interface** – HTML/CSS-based dashboard for monitoring and control.
 
-## Teknologi yang Digunakan
+## Technologies Used
 
-- **Python**: Backend & integrasi sensor.
-- **C++**: Pemrograman mikrokontroler/embedded system.
-- **HTML/CSS**: Tampilan dashboard web.
-- **IoT Devices**: Sensor cuaca, aktuator motor, dsb.
+* **Python** – Backend & sensor integration.
+* **C++** – NodeMCU (microcontroller) programming.
+* **HTML/CSS** – Web dashboard UI.
+* **IoT Devices** – Light sensor, rain sensor, clothesline motor actuator.
+* **Machine Learning** – Decision Tree Classifier for weather prediction.
 
-## Instalasi
+## Installation
 
-1. **Clone repository:**
-   ```bash
-   git clone https://github.com/ediiloupatty/iot-clothesline-system.git
-   cd iot-clothesline-system
-   ```
+```bash
+# Clone repository
+git clone https://github.com/ediiloupatty/iot-clothesline-system.git
+cd iot-clothesline-system
 
-2. **Install dependencies Python:**
-   ```bash
-   pip install -r requirements.txt
-   ```
+# Install Python dependencies
+pip install -r requirements.txt
 
-3. **Upload kode C++ ke mikrokontroler**  
-   (pastikan menggunakan Arduino IDE atau sejenis)
+# Upload C++ code to NodeMCU
+# (use Arduino IDE or compatible platform)
 
-4. **Jalankan aplikasi backend:**
-   ```bash
-   python app.py
-   ```
+# Run backend application
+python app.py
+```
 
-5. **Akses dashboard web:**  
-   Buka browser dan akses `http://localhost:5000`
+Open your browser and go to:
 
-## Cara Kerja
+```
+http://localhost:5000
+```
 
-1. Sensor cuaca membaca kondisi lingkungan.
-2. Data sensor dikirim ke backend (Python).
-3. Jika terdeteksi hujan, motor secara otomatis menarik jemuran ke dalam.
-4. Pengguna dapat memantau dan mengontrol jemuran melalui dashboard web.
+## How It Works
 
-## Kontribusi
+1. Sensors read light and rain conditions.
+2. Data is sent to the Python backend.
+3. The Decision Tree Classifier predicts the weather.
+4. The motor automatically moves the clothesline in/out.
+5. Users can monitor and control the clothesline via the web dashboard.
 
-Kontribusi sangat terbuka! Silakan fork repo ini, lakukan perubahan, dan buat pull request.
+## Contributing
 
-## Lisensi
+Contributions are welcome! Fork the repository, make changes, and submit a pull request.
 
-Kelompok 3
+## License
+
+© Group 3 – Free to use for learning and development purposes.
